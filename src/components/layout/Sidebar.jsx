@@ -583,6 +583,58 @@ export default function Sidebar({
     return { filesByCollectionId: colMap, directFilesByGroupId: grpMap };
   }, [filteredDocs]);
 
+  // High-performance O(1) Hash Map of collections grouped and sorted per group
+  const memberColsByGroupId = useMemo(() => {
+    const map = {};
+    const colOrderMap = new Map();
+    collections.forEach((c, idx) => colOrderMap.set(c.id, idx));
+
+    (Array.isArray(groups) ? groups : []).forEach((g) => {
+      const gId = typeof g === 'string' ? g : g.id;
+      const gName = typeof g === 'string' ? g : g.name;
+      const bucket = [];
+      if (gId) map[gId] = bucket;
+      if (gName && gName !== gId) map[gName] = bucket;
+    });
+
+    collections.forEach((c) => {
+      if (c.groupId && map[c.groupId]) {
+        map[c.groupId].push(c);
+      } else if (c.groupName && map[c.groupName]) {
+        map[c.groupName].push(c);
+      }
+    });
+
+    // Sort member collections according to active sort strategy (Date, Name, or Custom Draggable Order)
+    const uniqueBuckets = new Set(Object.values(map));
+    uniqueBuckets.forEach((list) => {
+      if (sortBy === 'name') {
+        list.sort((a, b) =>
+          (a.name || '').localeCompare(b.name || '', undefined, { numeric: true, sensitivity: 'base' })
+        );
+      } else if (sortBy === 'newest') {
+        list.sort((a, b) => {
+          const dateA = extractDateFromName(a.name, a.createdAt);
+          const dateB = extractDateFromName(b.name, b.createdAt);
+          if (dateA !== dateB) return dateB - dateA;
+          return (colOrderMap.get(a.id) ?? 0) - (colOrderMap.get(b.id) ?? 0);
+        });
+      } else if (sortBy === 'oldest') {
+        list.sort((a, b) => {
+          const dateA = extractDateFromName(a.name, a.createdAt);
+          const dateB = extractDateFromName(b.name, b.createdAt);
+          if (dateA !== dateB) return dateA - dateB;
+          return (colOrderMap.get(a.id) ?? 0) - (colOrderMap.get(b.id) ?? 0);
+        });
+      } else {
+        // Custom / Drag sequence: preserve exact collections array order
+        list.sort((a, b) => (colOrderMap.get(a.id) ?? 0) - (colOrderMap.get(b.id) ?? 0));
+      }
+    });
+
+    return map;
+  }, [collections, groups, sortBy]);
+
   // Available groups for dropdown filter: Strictly actual user-created groups
   const availableGroups = useMemo(() => {
     return (Array.isArray(groups) ? groups : [])
@@ -609,6 +661,7 @@ export default function Sidebar({
       style={{
         borderRight: '1px solid var(--border-subtle)',
         backgroundColor: 'var(--surface-sidebar)',
+        overscrollBehavior: 'contain',
       }}
     >
       {/* Brand Header */}
@@ -942,7 +995,18 @@ export default function Sidebar({
       </Group>
 
       {/* Main List Scroll Area: GROUPED BY FOLDER, GROUP, OR FLAT */}
-      <ScrollArea style={{ flex: 1 }} offsetScrollbars scrollbarSize={6}>
+      <ScrollArea
+        className="sidebar-scroll-container"
+        style={{ flex: 1, overscrollBehavior: 'contain' }}
+        viewportProps={{
+          style: {
+            overscrollBehavior: 'contain',
+            overscrollBehaviorY: 'contain',
+          },
+        }}
+        offsetScrollbars
+        scrollbarSize={6}
+      >
         <Stack gap="xs" pr={4}>
           {viewMode === 'groups' ? (
             // ================= GROUPS VIEW (User-Created Groups Only) =================
@@ -967,10 +1031,8 @@ export default function Sidebar({
                 const isExpanded = !!expandedGroups[grp.id];
                 const isSelected = selectedGroupId === grp.id;
 
-                // Member collections in this group
-                const memberCols = collections.filter(
-                  (c) => c.groupId === grp.id || c.groupName === grp.name
-                );
+                // Member collections in this group (O(1) pre-indexed and sorted)
+                const memberCols = memberColsByGroupId[grp.id] || memberColsByGroupId[grp.name] || [];
 
                 // Member direct files in this group (O(1) lookup)
                 const memberDocs = directFilesByGroupId[grp.id] || directFilesByGroupId[grp.name?.toLowerCase()] || [];
@@ -1211,25 +1273,144 @@ export default function Sidebar({
                           {/* Member Collections */}
                           {memberCols.length > 0 && (
                             <Box mb="xs">
-                              <Text size="10px" fw={700} c="dimmed" tt="uppercase" px={4} mb={2}>
-                                📁 Collections ({memberCols.length})
-                              </Text>
-                              <Stack gap={3}>
+                              <Group justify="space-between" align="center" px={4} mb={3}>
+                                <Text size="10px" fw={700} c="dimmed" tt="uppercase" style={{ letterSpacing: '0.04em' }}>
+                                  📁 Collections ({memberCols.length})
+                                </Text>
+                                <Badge size="xs" variant="subtle" color="gray" style={{ fontSize: '9.5px', textTransform: 'none', height: 16 }}>
+                                  {sortBy === 'newest' ? 'Newest' : sortBy === 'oldest' ? 'Oldest' : sortBy === 'name' ? 'A-Z' : 'Draggable'}
+                                </Badge>
+                              </Group>
+                              <Stack gap={4}>
                                 {memberCols.map((c) => {
                                   const isColExpanded = !!expandedFolders[c.id];
                                   const isColSelected = selectedCollectionId === c.id;
                                   const cFiles = filesByCollectionId[c.id] || [];
+                                  const isDropTargetBefore = dropTargetColId === c.id && colDropPosition === 'before';
+                                  const isDropTargetAfter = dropTargetColId === c.id && colDropPosition === 'after';
+                                  const isDragging = draggedColId === c.id;
 
                                   return (
                                     <Box
                                       key={c.id}
+                                      draggable={true}
+                                      onDragStart={(e) => {
+                                        e.stopPropagation();
+                                        const target = e.target;
+                                        if (
+                                          target.closest('button') ||
+                                          target.closest('a') ||
+                                          target.closest('input') ||
+                                          target.closest('.mantine-Menu-dropdown')
+                                        ) {
+                                          e.preventDefault();
+                                          return;
+                                        }
+                                        setDraggedColId(c.id);
+                                        e.dataTransfer.effectAllowed = 'move';
+                                        e.dataTransfer.setData('text/plain', c.id);
+                                      }}
+                                      onDragOver={(e) => {
+                                        e.stopPropagation();
+                                        handleItemDragOver(e, c.id, setDropTargetColId, setColDropPosition, draggedColId);
+                                      }}
+                                      onDragLeave={(e) => {
+                                        e.stopPropagation();
+                                        if (!e.currentTarget.contains(e.relatedTarget)) {
+                                          if (dropTargetColId === c.id) {
+                                            setDropTargetColId(null);
+                                            setColDropPosition(null);
+                                          }
+                                        }
+                                      }}
+                                      onDrop={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        if (draggedColId && draggedColId !== c.id) {
+                                          handleCollectionDrop(c.id, colDropPosition);
+                                        }
+                                      }}
+                                      onDragEnd={(e) => {
+                                        e.stopPropagation();
+                                        setDraggedColId(null);
+                                        setDropTargetColId(null);
+                                        setColDropPosition(null);
+                                      }}
                                       style={{
+                                        position: 'relative',
                                         borderRadius: 8,
-                                        border: isColSelected ? '1px solid var(--brand-primary)' : '1px solid var(--border-subtle)',
+                                        border: isColSelected
+                                          ? '1.5px solid var(--brand-primary)'
+                                          : isDragging
+                                          ? '1.5px dashed var(--brand-emerald)'
+                                          : '1px solid var(--border-subtle)',
                                         backgroundColor: isColSelected ? 'var(--surface-selected)' : '#ffffff',
-                                        overflow: 'hidden',
+                                        opacity: isDragging ? 0.35 : 1,
+                                        transform: isDragging ? 'scale(0.98)' : 'none',
+                                        transition: 'all 0.15s ease',
+                                        overflow: 'visible',
                                       }}
                                     >
+                                      {/* Visual Drop Indicators */}
+                                      {isDropTargetBefore && (
+                                        <Box
+                                          style={{
+                                            position: 'absolute',
+                                            top: -3,
+                                            left: 2,
+                                            right: 2,
+                                            height: 3,
+                                            backgroundColor: 'var(--brand-emerald)',
+                                            borderRadius: 99,
+                                            zIndex: 30,
+                                            boxShadow: '0 0 6px rgba(24, 88, 68, 0.75)',
+                                            pointerEvents: 'none',
+                                          }}
+                                        >
+                                          <Box
+                                            style={{
+                                              position: 'absolute',
+                                              left: -3,
+                                              top: -3,
+                                              width: 8,
+                                              height: 8,
+                                              borderRadius: '50%',
+                                              backgroundColor: 'var(--brand-emerald)',
+                                              boxShadow: '0 0 4px rgba(24, 88, 68, 0.8)',
+                                            }}
+                                          />
+                                        </Box>
+                                      )}
+                                      {isDropTargetAfter && (
+                                        <Box
+                                          style={{
+                                            position: 'absolute',
+                                            bottom: -3,
+                                            left: 2,
+                                            right: 2,
+                                            height: 3,
+                                            backgroundColor: 'var(--brand-emerald)',
+                                            borderRadius: 99,
+                                            zIndex: 30,
+                                            boxShadow: '0 0 6px rgba(24, 88, 68, 0.75)',
+                                            pointerEvents: 'none',
+                                          }}
+                                        >
+                                          <Box
+                                            style={{
+                                              position: 'absolute',
+                                              left: -3,
+                                              top: -3,
+                                              width: 8,
+                                              height: 8,
+                                              borderRadius: '50%',
+                                              backgroundColor: 'var(--brand-emerald)',
+                                              boxShadow: '0 0 4px rgba(24, 88, 68, 0.8)',
+                                            }}
+                                          />
+                                        </Box>
+                                      )}
+
                                       <Box
                                         p={6}
                                         px={8}
@@ -1238,10 +1419,31 @@ export default function Sidebar({
                                           alignItems: 'center',
                                           justifyContent: 'space-between',
                                           cursor: 'pointer',
+                                          borderRadius: isColExpanded ? '8px 8px 0 0' : '8px',
                                         }}
                                         onClick={() => onSelectCollection && onSelectCollection(c)}
                                       >
-                                        <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+                                        <Group gap={5} wrap="nowrap" style={{ minWidth: 0, overflow: 'hidden' }}>
+                                          {/* Reorder Grip Handle */}
+                                          <Tooltip label="Drag up or down to reorder folder" position="top" withArrow openDelay={350}>
+                                            <Box
+                                              component="span"
+                                              style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                cursor: 'grab',
+                                                color: 'var(--brand-sage)',
+                                                padding: '2px',
+                                                borderRadius: 3,
+                                                flexShrink: 0,
+                                              }}
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              <GripVertical size={13} />
+                                            </Box>
+                                          </Tooltip>
+
                                           <ActionIcon
                                             size="xs"
                                             variant="subtle"

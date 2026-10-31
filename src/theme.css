@@ -460,3 +460,25 @@ body {
   }
 }
 
+/* -------------------------------------------------------------------------
+   14. Scroll Chaining & Background Bleed Elimination (Root Cause Fix)
+   ------------------------------------------------------------------------- */
+/* Prevent scroll chaining from sidebar to parent document */
+.mantine-AppShell-navbar,
+[data-app-shell-navbar],
+.mantine-AppShell-navbar .mantine-ScrollArea-viewport,
+[data-app-shell-navbar] .mantine-ScrollArea-viewport,
+.sidebar-scroll-container,
+.sidebar-scroll-container .mantine-ScrollArea-viewport {
+  overscroll-behavior: contain !important;
+  overscroll-behavior-y: contain !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure backdrop scrim absorbs touch gestures */
+.sidebar-mobile-backdrop {
+  touch-action: none !important;
+  overscroll-behavior: contain !important;
+}
+
+

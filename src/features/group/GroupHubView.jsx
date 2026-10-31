@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Paper,
   Group,
@@ -22,6 +22,7 @@ import {
   Card,
   ThemeIcon,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   FolderKanban,
   Folder,
@@ -34,9 +35,13 @@ import {
   ArrowRight,
   Shield,
   Tag,
+  GripVertical,
+  ArrowUpDown,
 } from 'lucide-react';
+import { notifications } from '@mantine/notifications';
 import FileCard from '../library/FileCard';
-import { getCollections } from '../../services/apiClient';
+import { getCollections, reorderCollections } from '../../services/apiClient';
+import { extractDateFromName } from '../../utils/formatters';
 
 export default function GroupHubView({
   group,
@@ -49,6 +54,7 @@ export default function GroupHubView({
   onCreateCollectionInGroup,
   onAssignCollectionToGroup,
 }) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
   // Edit Modal State
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [name, setName] = useState(group.name || '');
@@ -174,33 +180,124 @@ export default function GroupHubView({
   const documents = group.documents || [];
   const totalKB = (group.totalBytes || 0) / 1024;
 
+  // Sorting and Dragging Collections in Group
+  const [colSortBy, setColSortBy] = useState('date-desc'); // 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'custom'
+  const [orderedCols, setOrderedCols] = useState(collections);
+  const [draggedColId, setDraggedColId] = useState(null);
+  const [dropTargetColId, setDropTargetColId] = useState(null);
+  const [colDropPosition, setColDropPosition] = useState(null); // 'before' | 'after'
+
+  useEffect(() => {
+    setOrderedCols(group.collections || []);
+  }, [group.collections]);
+
+  const displayedCols = useMemo(() => {
+    const list = [...orderedCols];
+    if (colSortBy === 'date-desc') {
+      return list.sort((a, b) => {
+        const dateA = extractDateFromName(a.name, a.createdAt);
+        const dateB = extractDateFromName(b.name, b.createdAt);
+        if (dateA !== dateB) return dateB - dateA;
+        return (a.order ?? 0) - (b.order ?? 0);
+      });
+    } else if (colSortBy === 'date-asc') {
+      return list.sort((a, b) => {
+        const dateA = extractDateFromName(a.name, a.createdAt);
+        const dateB = extractDateFromName(b.name, b.createdAt);
+        if (dateA !== dateB) return dateA - dateB;
+        return (a.order ?? 0) - (b.order ?? 0);
+      });
+    } else if (colSortBy === 'name-asc') {
+      return list.sort((a, b) =>
+        (a.name || '').localeCompare(b.name || '', undefined, { numeric: true, sensitivity: 'base' })
+      );
+    } else if (colSortBy === 'name-desc') {
+      return list.sort((a, b) =>
+        (b.name || '').localeCompare(a.name || '', undefined, { numeric: true, sensitivity: 'base' })
+      );
+    }
+    return list;
+  }, [orderedCols, colSortBy]);
+
+  const handleGroupColDrop = async (targetColId, dropPosition) => {
+    if (!draggedColId || draggedColId === targetColId) {
+      setDraggedColId(null);
+      setDropTargetColId(null);
+      setColDropPosition(null);
+      return;
+    }
+
+    const fromIndex = orderedCols.findIndex((c) => c.id === draggedColId);
+    if (fromIndex === -1) {
+      setDraggedColId(null);
+      setDropTargetColId(null);
+      setColDropPosition(null);
+      return;
+    }
+
+    const newCols = [...orderedCols];
+    const [movedItem] = newCols.splice(fromIndex, 1);
+    let targetIndex = newCols.findIndex((c) => c.id === targetColId);
+    if (targetIndex === -1) {
+      targetIndex = newCols.length;
+    } else if (dropPosition === 'after') {
+      targetIndex += 1;
+    }
+
+    newCols.splice(targetIndex, 0, movedItem);
+    setColSortBy('custom');
+    setOrderedCols(newCols);
+    setDraggedColId(null);
+    setDropTargetColId(null);
+    setColDropPosition(null);
+
+    try {
+      const orderedIds = newCols.map((c) => c.id);
+      await reorderCollections(orderedIds);
+      notifications.show({
+        title: 'Folder Reordered',
+        message: `"${movedItem.name}" sequence updated in ${group.name}.`,
+        color: 'teal',
+        autoClose: 1800,
+      });
+    } catch (err) {
+      console.error('Failed to save group collection sequence:', err);
+      setOrderedCols(group.collections || []);
+      notifications.show({
+        title: 'Reorder Failed',
+        message: 'Could not save folder sequence.',
+        color: 'red',
+      });
+    }
+  };
+
   return (
-    <Box p="lg">
+    <Box p={isMobile ? 'xs' : 'lg'}>
       {/* Group Header Hero Banner */}
       <Paper
-        p="lg"
+        p={isMobile ? 'sm' : 'lg'}
         radius="lg"
         withBorder
-        mb="xl"
+        mb={isMobile ? 'md' : 'xl'}
         style={{
           borderLeft: `8px solid ${group.color || '#6366f1'}`,
           backgroundColor: '#ffffff',
-          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+          boxShadow: 'var(--shadow-card)',
         }}
       >
         <Group justify="space-between" align="flex-start" wrap="wrap" gap="md">
-          <Group align="flex-start" gap="md">
+          <Group align="flex-start" gap="md" style={{ flex: 1, minWidth: 0 }}>
             <ThemeIcon
-              size={54}
+              size={isMobile ? 42 : 54}
               radius="md"
-              style={{ backgroundColor: `${group.color || '#6366f1'}15` }}
+              style={{ backgroundColor: `${group.color || '#6366f1'}15`, flexShrink: 0 }}
             >
-              <FolderKanban size={30} color={group.color || '#6366f1'} />
+              <FolderKanban size={isMobile ? 22 : 30} color={group.color || '#6366f1'} />
             </ThemeIcon>
 
-            <Box>
-              <Group gap="xs" align="center">
-                <Title order={2} fw={700}>
+            <Box style={{ flex: 1, minWidth: 0 }}>
+              <Group gap="xs" align="center" wrap="wrap">
+                <Title order={isMobile ? 3 : 2} fw={700}>
                   {group.name}
                 </Title>
                 <Badge
@@ -221,7 +318,7 @@ export default function GroupHubView({
                 {group.description || 'Custom organizational group for categorizing collections and files.'}
               </Text>
 
-              <Group gap="md" mt="sm">
+              <Group gap={isMobile ? 'xs' : 'md'} mt="sm" wrap="wrap">
                 <Badge color="blue" variant="dot" size="sm">
                   {collections.length} {collections.length === 1 ? 'Collection' : 'Collections'}
                 </Badge>
@@ -236,37 +333,39 @@ export default function GroupHubView({
           </Group>
 
           {/* Action Buttons */}
-          <Group gap="xs">
+          <Group gap="xs" wrap="nowrap" style={{ width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'flex-end' : 'flex-start' }}>
             <Button
-              leftSection={<FolderPlus size={16} />}
+              leftSection={<FolderPlus size={15} />}
               variant="light"
               color="indigo"
-              size="sm"
+              size={isMobile ? 'xs' : 'sm'}
               onClick={() => setCreateColOpen(true)}
+              style={{ borderRadius: '8px' }}
             >
               Add Collection
             </Button>
 
             <Button
-              leftSection={<UploadCloud size={16} />}
+              leftSection={<UploadCloud size={15} />}
               variant="light"
               color="blue"
-              size="sm"
+              size={isMobile ? 'xs' : 'sm'}
               onClick={onOpenUpload}
+              style={{ borderRadius: '8px' }}
             >
               Upload File
             </Button>
 
             <Tooltip label="Edit Group Details">
-              <ActionIcon variant="default" size="lg" radius="md" onClick={handleOpenEdit}>
-                <Edit3 size={16} />
+              <ActionIcon variant="default" size={isMobile ? '30px' : '36px'} radius="md" onClick={handleOpenEdit}>
+                <Edit3 size={15} />
               </ActionIcon>
             </Tooltip>
 
             {!group.isSystem && (
               <Tooltip label="Delete Group">
-                <ActionIcon variant="light" color="red" size="lg" radius="md" onClick={() => setDeleteModalOpen(true)}>
-                  <Trash2 size={16} />
+                <ActionIcon variant="light" color="red" size={isMobile ? '30px' : '36px'} radius="md" onClick={() => setDeleteModalOpen(true)}>
+                  <Trash2 size={15} />
                 </ActionIcon>
               </Tooltip>
             )}
@@ -277,68 +376,211 @@ export default function GroupHubView({
       <Stack gap="xl">
         {/* SECTION 1: Member Collections */}
         <Box>
-          <Group justify="space-between" align="center" mb="md">
+          <Group justify="space-between" align="center" mb="md" wrap="wrap" gap="xs">
             <Group gap="xs">
               <Folder size={20} color="#0284c7" />
               <Title order={3} size="h4">
-                Collections in this Group ({collections.length})
+                Collections in this Group ({displayedCols.length})
               </Title>
+              {colSortBy === 'custom' && (
+                <Badge size="xs" variant="light" color="gold" leftSection={<GripVertical size={11} />}>
+                  Custom Drag Order
+                </Badge>
+              )}
             </Group>
-            <Button
-              variant="subtle"
-              size="xs"
-              leftSection={<FolderPlus size={14} />}
-              onClick={() => setCreateColOpen(true)}
-            >
-              New Collection
-            </Button>
+
+            <Group gap="xs">
+              <Select
+                size="xs"
+                leftSection={<ArrowUpDown size={13} style={{ color: 'var(--text-tertiary)' }} />}
+                value={colSortBy}
+                onChange={(val) => setColSortBy(val || 'date-desc')}
+                data={[
+                  { label: 'Date: Newest First', value: 'date-desc' },
+                  { label: 'Date: Oldest First', value: 'date-asc' },
+                  { label: 'Name (A - Z)', value: 'name-asc' },
+                  { label: 'Name (Z - A)', value: 'name-desc' },
+                  { label: 'Custom (Draggable)', value: 'custom' },
+                ]}
+                comboboxProps={{ width: 185, withinPortal: true, shadow: 'md' }}
+                styles={{
+                  input: {
+                    height: 32,
+                    minHeight: 32,
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    borderRadius: '8px',
+                    borderColor: 'var(--border-subtle)',
+                    backgroundColor: 'var(--surface-card)',
+                    color: 'var(--text-primary)',
+                  },
+                  option: { fontSize: '12px', whiteSpace: 'nowrap' },
+                }}
+              />
+
+              <Button
+                variant="subtle"
+                size="xs"
+                leftSection={<FolderPlus size={14} />}
+                onClick={() => setCreateColOpen(true)}
+              >
+                New Collection
+              </Button>
+            </Group>
           </Group>
 
-          {collections.length > 0 ? (
+          {displayedCols.length > 0 ? (
             <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
-              {collections.map((col) => (
-                <Card
-                  key={col.id}
-                  padding="md"
-                  radius="md"
-                  withBorder
-                  style={{
-                    cursor: 'pointer',
-                    transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-                    borderLeft: `4px solid ${col.color || '#0284c7'}`,
-                  }}
-                  onClick={() => onSelectCollection && onSelectCollection(col)}
-                  className="hover-card"
-                >
-                  <Group justify="space-between" align="flex-start" mb="xs">
-                    <Group gap="xs">
-                      <Folder size={20} color={col.color || '#0284c7'} />
-                      <Text size="sm" fw={600} truncate maw={180}>
-                        {col.name}
+              {displayedCols.map((col) => {
+                const isDropTargetBefore = dropTargetColId === col.id && colDropPosition === 'before';
+                const isDropTargetAfter = dropTargetColId === col.id && colDropPosition === 'after';
+                const isDragging = draggedColId === col.id;
+
+                return (
+                  <Box
+                    key={col.id}
+                    style={{ position: 'relative' }}
+                    draggable={true}
+                    onDragStart={(e) => {
+                      const target = e.target;
+                      if (target.closest('button') || target.closest('a') || target.closest('input')) {
+                        e.preventDefault();
+                        return;
+                      }
+                      setDraggedColId(col.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                      e.dataTransfer.setData('text/plain', col.id);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      e.dataTransfer.dropEffect = 'move';
+                      if (!draggedColId || draggedColId === col.id) return;
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const relX = e.clientX - rect.left;
+                      const position = relX < rect.width / 2 ? 'before' : 'after';
+                      setDropTargetColId(col.id);
+                      setColDropPosition(position);
+                    }}
+                    onDragLeave={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget)) {
+                        if (dropTargetColId === col.id) {
+                          setDropTargetColId(null);
+                          setColDropPosition(null);
+                        }
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (draggedColId && draggedColId !== col.id) {
+                        handleGroupColDrop(col.id, colDropPosition);
+                      }
+                    }}
+                    onDragEnd={() => {
+                      setDraggedColId(null);
+                      setDropTargetColId(null);
+                      setColDropPosition(null);
+                    }}
+                  >
+                    {/* Visual Drop Indicators for Grid Cards */}
+                    {isDropTargetBefore && (
+                      <Box
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          bottom: 0,
+                          left: -4,
+                          width: 4,
+                          backgroundColor: 'var(--brand-emerald)',
+                          borderRadius: 99,
+                          zIndex: 30,
+                          boxShadow: '0 0 8px rgba(24, 88, 68, 0.8)',
+                          pointerEvents: 'none',
+                        }}
+                      />
+                    )}
+                    {isDropTargetAfter && (
+                      <Box
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          bottom: 0,
+                          right: -4,
+                          width: 4,
+                          backgroundColor: 'var(--brand-emerald)',
+                          borderRadius: 99,
+                          zIndex: 30,
+                          boxShadow: '0 0 8px rgba(24, 88, 68, 0.8)',
+                          pointerEvents: 'none',
+                        }}
+                      />
+                    )}
+
+                    <Card
+                      padding="md"
+                      radius="md"
+                      withBorder
+                      style={{
+                        cursor: 'pointer',
+                        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                        borderLeft: `4px solid ${col.color || '#0284c7'}`,
+                        opacity: isDragging ? 0.35 : 1,
+                        transform: isDragging ? 'scale(0.97)' : 'none',
+                      }}
+                      onClick={() => onSelectCollection && onSelectCollection(col)}
+                      className="hover-card"
+                    >
+                      <Group justify="space-between" align="flex-start" mb="xs">
+                        <Group gap="xs" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+                          <Tooltip label="Drag to reorder folder in group" withArrow openDelay={350}>
+                            <Box
+                              component="span"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'grab',
+                                color: 'var(--text-tertiary)',
+                                padding: '2px',
+                                borderRadius: 3,
+                                flexShrink: 0,
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <GripVertical size={14} />
+                            </Box>
+                          </Tooltip>
+
+                          <Folder size={20} color={col.color || '#0284c7'} style={{ flexShrink: 0 }} />
+                          <Text size="sm" fw={600} truncate style={{ flex: 1, minWidth: 0 }}>
+                            {col.name}
+                          </Text>
+                        </Group>
+                        <Badge size="xs" color={col.scope === 'personal' ? 'violet' : 'blue'} variant="light">
+                          {col.scope}
+                        </Badge>
+                      </Group>
+
+                      <Text size="xs" c="dimmed" lineClamp={2} mb="sm" mih={32}>
+                        {col.description || 'Custom collection of documents.'}
                       </Text>
-                    </Group>
-                    <Badge size="xs" color={col.scope === 'personal' ? 'violet' : 'blue'} variant="light">
-                      {col.scope}
-                    </Badge>
-                  </Group>
 
-                  <Text size="xs" c="dimmed" lineClamp={2} mb="sm" mih={32}>
-                    {col.description || 'Custom collection of documents.'}
-                  </Text>
+                      <Divider my="xs" />
 
-                  <Divider my="xs" />
-
-                  <Group justify="space-between" align="center">
-                    <Text size="xs" fw={500} c="dimmed">
-                      {col.documentCount || 0} {col.documentCount === 1 ? 'file' : 'files'}
-                    </Text>
-                    <Group gap={4} c="blue" style={{ fontSize: 12, fontWeight: 500 }}>
-                      <span>View Collection</span>
-                      <ArrowRight size={14} />
-                    </Group>
-                  </Group>
-                </Card>
-              ))}
+                      <Group justify="space-between" align="center">
+                        <Text size="xs" fw={500} c="dimmed">
+                          {col.documentCount || 0} {col.documentCount === 1 ? 'file' : 'files'}
+                        </Text>
+                        <Group gap={4} c="blue" style={{ fontSize: 12, fontWeight: 500 }}>
+                          <span>View Collection</span>
+                          <ArrowRight size={14} />
+                        </Group>
+                      </Group>
+                    </Card>
+                  </Box>
+                );
+              })}
             </SimpleGrid>
           ) : (
             <Paper p="lg" radius="md" withBorder style={{ backgroundColor: '#f8fafc', textAlign: 'center' }}>

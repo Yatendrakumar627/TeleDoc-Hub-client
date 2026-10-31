@@ -20,6 +20,7 @@ import {
   Divider,
   Menu,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   Folder,
   FileText,
@@ -207,6 +208,7 @@ export default function CollectionHubView({
   onUpdateCollection,
   onDeleteCollection,
 }) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
@@ -385,16 +387,16 @@ export default function CollectionHubView({
   };
 
   return (
-    <Box p="lg" style={{ maxWidth: 1040, margin: '0 auto', width: '100%' }}>
+    <Box p={isMobile ? 'xs' : 'lg'} style={{ maxWidth: 1040, margin: '0 auto', width: '100%' }}>
       {/* Collection Hero Header */}
-      <Paper p="lg" radius="md" withBorder mb="lg" style={{ backgroundColor: '#ffffff' }}>
+      <Paper p={isMobile ? 'sm' : 'lg'} radius="md" withBorder mb="lg" style={{ backgroundColor: '#ffffff', boxShadow: 'var(--shadow-card)' }}>
         <Stack gap="sm">
           <Group justify="space-between" align="flex-start" wrap="wrap">
             <Group gap="sm" align="flex-start">
               <Box
                 style={{
-                  width: 44,
-                  height: 44,
+                  width: isMobile ? 38 : 44,
+                  height: isMobile ? 38 : 44,
                   borderRadius: 10,
                   backgroundColor: isPersonal ? '#fdf2f8' : '#e0f2fe',
                   display: 'flex',
@@ -403,10 +405,10 @@ export default function CollectionHubView({
                   color: isPersonal ? '#db2777' : '#0284c7',
                 }}
               >
-                <Folder size={24} />
+                <Folder size={isMobile ? 20 : 24} />
               </Box>
 
-              <Box>
+              <Box style={{ flex: 1, minWidth: 0 }}>
                 <Group gap="xs" mb={4} wrap="wrap">
                   <Badge color={isPersonal ? 'grape' : 'cyan'} variant="outline" size="xs">
                     {isPersonal ? 'Personal Vault' : 'Work Collection'}
@@ -419,45 +421,58 @@ export default function CollectionHubView({
                   </Badge>
                 </Group>
 
-                <Title order={2} style={{ color: '#0f172a', letterSpacing: '-0.02em' }}>
+                <Title order={isMobile ? 3 : 2} style={{ color: '#0f172a', fontWeight: 800, letterSpacing: '-0.02em' }}>
                   {collection?.name || 'Collection'}
                 </Title>
-                <Text size="xs" c="dimmed">
+                <Text size="xs" c="dimmed" mt={2}>
                   Total archive size: {formatBytes(totalBytes)} • Stored individually in Telegram Vault
                 </Text>
               </Box>
             </Group>
 
             {/* Collection Actions (CRUD) */}
-            <Group gap="xs" wrap="wrap">
+            <Group gap="xs" wrap="nowrap" mt={isMobile ? 'xs' : 0} style={{ width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'flex-end' : 'flex-start' }}>
               <Tooltip label="Edit Collection Name & Scope" withArrow>
                 <Button
                   variant="default"
-                  size="sm"
-                  leftSection={<Edit3 size={15} />}
+                  size={isMobile ? 'xs' : 'sm'}
+                  leftSection={<Edit3 size={14} />}
                   onClick={handleOpenEdit}
+                  style={{ borderRadius: '8px' }}
                 >
                   Edit
                 </Button>
               </Tooltip>
 
-              <Tooltip label="Delete Collection" withArrow>
+              <Tooltip label="Delete Collection" withArrow position="top">
                 <ActionIcon
                   variant="subtle"
                   color="red"
-                  size="36px"
+                  size={isMobile ? '30px' : '36px'}
                   radius="md"
                   onClick={() => setDeleteModalOpen(true)}
+                  style={{
+                    backgroundColor: '#fef2f2',
+                    border: '1px solid #fee2e2',
+                    color: '#ef4444',
+                    borderRadius: '8px',
+                  }}
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={15} />
                 </ActionIcon>
               </Tooltip>
 
               <Button
-                color="blue"
-                size="sm"
-                leftSection={<UploadCloud size={16} />}
+                size={isMobile ? 'xs' : 'sm'}
+                leftSection={<UploadCloud size={15} />}
                 onClick={() => onOpenUpload && onOpenUpload(collection)}
+                style={{
+                  backgroundColor: 'var(--brand-primary)',
+                  color: '#ffffff',
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  boxShadow: 'var(--brand-glow)',
+                }}
               >
                 Add File
               </Button>
@@ -479,7 +494,7 @@ export default function CollectionHubView({
           )}
         </Group>
 
-        <Group gap="xs">
+        <Box style={{ width: isMobile ? '100%' : 'auto' }}>
           <Select
             size="xs"
             leftSection={<ArrowUpDown size={13} style={{ color: 'var(--text-tertiary)' }} />}
@@ -492,7 +507,8 @@ export default function CollectionHubView({
               { label: 'Name (Z - A)', value: 'name-desc' },
               { label: 'Custom (Draggable)', value: 'custom' },
             ]}
-            comboboxProps={{ width: 185, withinPortal: true, shadow: 'md' }}
+            comboboxProps={{ width: isMobile ? '100%' : 185, withinPortal: true, shadow: 'md' }}
+            style={{ width: isMobile ? '100%' : 185 }}
             styles={{
               input: {
                 height: 32,
@@ -507,7 +523,7 @@ export default function CollectionHubView({
               option: { fontSize: '12px', whiteSpace: 'nowrap' },
             }}
           />
-        </Group>
+        </Box>
       </Group>
 
       {/* Grid of Individual Files */}
@@ -535,7 +551,7 @@ export default function CollectionHubView({
         </Paper>
       ) : (
         <>
-          <SimpleGrid cols={{ base: 1, md: 2, xl: 3 }} spacing="md">
+          <SimpleGrid cols={{ base: 1, md: 2, xl: 3 }} spacing={isMobile ? 'xs' : 'md'}>
           {displayedFilesWithMeta.slice(0, collectionDisplayLimit).map((file) => {
             const meta = getDocTypeMeta(file.type, file.format);
             const isDragging = draggedFileId === file.id;
@@ -547,7 +563,7 @@ export default function CollectionHubView({
             return (
               <Card
                 key={file.id}
-                p="sm"
+                p={isMobile ? 'xs' : 'sm'}
                 radius="md"
                 withBorder
                 draggable={true}
@@ -605,7 +621,7 @@ export default function CollectionHubView({
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  padding: '12px 16px',
+                  padding: isMobile ? '10px 12px' : '12px 16px',
                   '&:hover': {
                     borderColor: 'var(--brand-emerald)',
                     boxShadow: '0 6px 18px -3px rgba(16, 47, 39, 0.08), 0 2px 5px -1px rgba(16, 47, 39, 0.03)',
@@ -651,7 +667,7 @@ export default function CollectionHubView({
                 <div>
                   {/* Top Row: Brand Icon + Title + Format Pill ... Quick Action Bar */}
                   <Group justify="space-between" align="flex-start" wrap="nowrap" mb={8}>
-                    <Group gap={10} align="center" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+                    <Group gap={8} align="center" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
                       {/* Drag Handle */}
                       <Tooltip label="Drag to reorder" position="top" withArrow openDelay={350}>
                         <Box
@@ -677,7 +693,7 @@ export default function CollectionHubView({
                         type={file.type}
                         format={file.format}
                         filename={file.filename || file.title}
-                        size={38}
+                        size={isMobile ? 32 : 38}
                       />
 
                       {/* Title & Format Pill */}
@@ -689,7 +705,7 @@ export default function CollectionHubView({
                             style={{
                               color: '#0f172a',
                               lineHeight: 1.25,
-                              fontSize: '15px',
+                              fontSize: isMobile ? '13.5px' : '15px',
                               letterSpacing: '-0.01em',
                             }}
                           >
@@ -697,21 +713,22 @@ export default function CollectionHubView({
                           </Text>
                         </Tooltip>
 
-                        <Group gap={6} mt={3} wrap="nowrap">
+                        <Group gap={6} mt={2} wrap="nowrap">
                           <Badge
                             size="xs"
                             variant="light"
-                            leftSection={<FileText size={10} />}
+                            leftSection={<FileText size={9} />}
                             style={{
                               backgroundColor: '#eaf7ee',
                               color: '#185844',
-                              fontSize: '9.5px',
+                              fontSize: '9px',
                               fontWeight: 700,
                               letterSpacing: '0.02em',
-                              height: '20px',
+                              height: '19px',
                               padding: '0 6px',
                               borderRadius: '4px',
                               textTransform: 'uppercase',
+                              maxWidth: '100%',
                             }}
                           >
                             {meta.label || 'WORD DOCUMENT'}
@@ -720,7 +737,9 @@ export default function CollectionHubView({
                       </Box>
                     </Group>
 
-                    {/* Quick Action Icons: Download, Link, More, Delete */}
+                    {/* Quick Action Icons:
+                        On Mobile: We show Download + More (Menu has Copy Link, Open, Delete).
+                        On Desktop: We show Download, Copy Link, More, Delete. */}
                     <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
                       {/* 1. Download File */}
                       <Tooltip label="Download File" withArrow position="top">
@@ -744,37 +763,39 @@ export default function CollectionHubView({
                         </ActionIcon>
                       </Tooltip>
 
-                      {/* 2. Copy Link */}
-                      <Tooltip label="Copy Link" withArrow position="top">
-                        <ActionIcon
-                          size="28px"
-                          radius="md"
-                          variant="subtle"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const shareUrl = `${window.location.origin}/#doc=${file.id}`;
-                            navigator.clipboard.writeText(shareUrl);
-                            notifications.show({
-                              title: 'Link Copied',
-                              message: 'Document link copied to clipboard.',
-                              color: 'emerald',
-                              autoClose: 2000,
-                            });
-                          }}
-                          style={{
-                            backgroundColor: '#f8fafc',
-                            border: '1px solid #f1f5f9',
-                            color: '#475569',
-                            borderRadius: '8px',
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          <LinkIcon size={13} />
-                        </ActionIcon>
-                      </Tooltip>
+                      {!isMobile && (
+                        /* 2. Copy Link (Desktop only) */
+                        <Tooltip label="Copy Link" withArrow position="top">
+                          <ActionIcon
+                            size="28px"
+                            radius="md"
+                            variant="subtle"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const shareUrl = `${window.location.origin}/#doc=${file.id}`;
+                              navigator.clipboard.writeText(shareUrl);
+                              notifications.show({
+                                title: 'Link Copied',
+                                message: 'Document link copied to clipboard.',
+                                color: 'emerald',
+                                autoClose: 2000,
+                              });
+                            }}
+                            style={{
+                              backgroundColor: '#f8fafc',
+                              border: '1px solid #f1f5f9',
+                              color: '#475569',
+                              borderRadius: '8px',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <LinkIcon size={13} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
 
                       {/* 3. More Options Menu */}
-                      <Menu shadow="md" width={170} position="bottom-end" withinPortal>
+                      <Menu shadow="md" width={180} position="bottom-end" withinPortal>
                         <Menu.Target>
                           <Tooltip label="More Options" withArrow position="top">
                             <ActionIcon
@@ -799,6 +820,21 @@ export default function CollectionHubView({
                             Open File Viewer
                           </Menu.Item>
                           <Menu.Item
+                            leftSection={<LinkIcon size={13} />}
+                            onClick={() => {
+                              const shareUrl = `${window.location.origin}/#doc=${file.id}`;
+                              navigator.clipboard.writeText(shareUrl);
+                              notifications.show({
+                                title: 'Link Copied',
+                                message: 'Document link copied to clipboard.',
+                                color: 'emerald',
+                                autoClose: 2000,
+                              });
+                            }}
+                          >
+                            Copy Direct Link
+                          </Menu.Item>
+                          <Menu.Item
                             color="red"
                             leftSection={<Trash2 size={13} />}
                             onClick={() => {
@@ -812,84 +848,200 @@ export default function CollectionHubView({
                         </Menu.Dropdown>
                       </Menu>
 
-                      {/* 4. Delete File */}
-                      <Tooltip label="Delete File" withArrow position="top">
-                        <ActionIcon
-                          size="28px"
-                          radius="md"
-                          variant="subtle"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm(`Delete "${file.filename || file.title}" from vault?`)) {
-                              onDeleteFile(file.id);
-                            }
-                          }}
-                          style={{
-                            backgroundColor: '#fef2f2',
-                            border: '1px solid #fee2e2',
-                            color: '#ef4444',
-                            borderRadius: '8px',
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          <Trash2 size={13} />
-                        </ActionIcon>
-                      </Tooltip>
+                      {!isMobile && (
+                        /* 4. Delete File (Desktop only) */
+                        <Tooltip label="Delete File" withArrow position="top">
+                          <ActionIcon
+                            size="28px"
+                            radius="md"
+                            variant="subtle"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm(`Delete "${file.filename || file.title}" from vault?`)) {
+                                onDeleteFile(file.id);
+                              }
+                            }}
+                            style={{
+                              backgroundColor: '#fef2f2',
+                              border: '1px solid #fee2e2',
+                              color: '#ef4444',
+                              borderRadius: '8px',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <Trash2 size={13} />
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
                     </Group>
                   </Group>
 
-                  {/* Middle Metrics Strip (Date | Words | Size | Open Button) */}
-                  <Group justify="space-between" align="center" wrap="nowrap" mt={10} mb={10}>
-                    <Group gap={10} align="center" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
-                      {/* Date */}
-                      <Group gap={6} wrap="nowrap" align="center">
-                        <Calendar size={15} color="#64748b" style={{ flexShrink: 0 }} />
+                  {/* Middle Metrics Strip */}
+                  {isMobile ? (
+                    /* Mobile Clean 3-Metric Distribution (Date, Words, Size) with ZERO truncation */
+                    <Group justify="space-between" align="center" wrap="nowrap" mt={10} mb={10} px={2}>
+                      <Group gap={5} wrap="nowrap" align="center">
+                        <Calendar size={13} color="#64748b" style={{ flexShrink: 0 }} />
                         <Box>
-                          <Text size="9.5px" c="dimmed" fw={500} style={{ lineHeight: 1.1 }}>
+                          <Text size="9px" c="dimmed" fw={500} style={{ lineHeight: 1 }}>
                             Date
                           </Text>
-                          <Text size="12px" fw={700} style={{ color: '#0f172a', lineHeight: 1.25, whiteSpace: 'nowrap' }}>
+                          <Text size="11.5px" fw={700} style={{ color: '#0f172a', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
                             {formattedFileDate}
                           </Text>
                         </Box>
                       </Group>
 
-                      <Divider orientation="vertical" h={22} color="#e2e8f0" />
+                      <Divider orientation="vertical" h={20} color="#e2e8f0" />
 
-                      {/* Words */}
-                      <Group gap={6} wrap="nowrap" align="center">
-                        <AlignLeft size={15} color="#64748b" style={{ flexShrink: 0 }} />
+                      <Group gap={5} wrap="nowrap" align="center">
+                        <AlignLeft size={13} color="#64748b" style={{ flexShrink: 0 }} />
                         <Box>
-                          <Text size="9.5px" c="dimmed" fw={500} style={{ lineHeight: 1.1 }}>
+                          <Text size="9px" c="dimmed" fw={500} style={{ lineHeight: 1 }}>
                             Words
                           </Text>
-                          <Text size="12px" fw={700} style={{ color: '#0f172a', lineHeight: 1.25, whiteSpace: 'nowrap' }}>
+                          <Text size="11.5px" fw={700} style={{ color: '#0f172a', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
                             {file.wordCount ? Number(file.wordCount).toLocaleString() : '—'}
                           </Text>
                         </Box>
                       </Group>
 
-                      <Divider orientation="vertical" h={22} color="#e2e8f0" />
+                      <Divider orientation="vertical" h={20} color="#e2e8f0" />
 
-                      {/* Size */}
-                      <Group gap={6} wrap="nowrap" align="center">
-                        <Database size={15} color="#64748b" style={{ flexShrink: 0 }} />
+                      <Group gap={5} wrap="nowrap" align="center">
+                        <Database size={13} color="#64748b" style={{ flexShrink: 0 }} />
                         <Box>
-                          <Text size="9.5px" c="dimmed" fw={500} style={{ lineHeight: 1.1 }}>
+                          <Text size="9px" c="dimmed" fw={500} style={{ lineHeight: 1 }}>
                             Size
                           </Text>
-                          <Text size="12px" fw={700} style={{ color: '#0f172a', lineHeight: 1.25, whiteSpace: 'nowrap' }}>
+                          <Text size="11.5px" fw={700} style={{ color: '#0f172a', lineHeight: 1.2, whiteSpace: 'nowrap' }}>
                             {formatBytes(file.fileSize)}
                           </Text>
                         </Box>
                       </Group>
                     </Group>
+                  ) : (
+                    /* Desktop Metrics + Open Button */
+                    <Group justify="space-between" align="center" wrap="nowrap" mt={10} mb={10}>
+                      <Group gap={10} align="center" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+                        <Group gap={6} wrap="nowrap" align="center">
+                          <Calendar size={15} color="#64748b" style={{ flexShrink: 0 }} />
+                          <Box>
+                            <Text size="9.5px" c="dimmed" fw={500} style={{ lineHeight: 1.1 }}>
+                              Date
+                            </Text>
+                            <Text size="12px" fw={700} style={{ color: '#0f172a', lineHeight: 1.25, whiteSpace: 'nowrap' }}>
+                              {formattedFileDate}
+                            </Text>
+                          </Box>
+                        </Group>
 
-                    {/* Open CTA Button */}
+                        <Divider orientation="vertical" h={22} color="#e2e8f0" />
+
+                        <Group gap={6} wrap="nowrap" align="center">
+                          <AlignLeft size={15} color="#64748b" style={{ flexShrink: 0 }} />
+                          <Box>
+                            <Text size="9.5px" c="dimmed" fw={500} style={{ lineHeight: 1.1 }}>
+                              Words
+                            </Text>
+                            <Text size="12px" fw={700} style={{ color: '#0f172a', lineHeight: 1.25, whiteSpace: 'nowrap' }}>
+                              {file.wordCount ? Number(file.wordCount).toLocaleString() : '—'}
+                            </Text>
+                          </Box>
+                        </Group>
+
+                        <Divider orientation="vertical" h={22} color="#e2e8f0" />
+
+                        <Group gap={6} wrap="nowrap" align="center">
+                          <Database size={15} color="#64748b" style={{ flexShrink: 0 }} />
+                          <Box>
+                            <Text size="9.5px" c="dimmed" fw={500} style={{ lineHeight: 1.1 }}>
+                              Size
+                            </Text>
+                            <Text size="12px" fw={700} style={{ color: '#0f172a', lineHeight: 1.25, whiteSpace: 'nowrap' }}>
+                              {formatBytes(file.fileSize)}
+                            </Text>
+                          </Box>
+                        </Group>
+                      </Group>
+
+                      <Button
+                        size="xs"
+                        radius="sm"
+                        leftSection={<ExternalLink size={12} />}
+                        rightSection={<ArrowRight size={12} />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectFile(file.id);
+                        }}
+                        style={{
+                          backgroundColor: '#185844',
+                          color: '#ffffff',
+                          fontWeight: 600,
+                          fontSize: '12px',
+                          height: '32px',
+                          padding: '0 12px',
+                          borderRadius: '8px',
+                          boxShadow: '0 2px 8px rgba(24, 88, 68, 0.22)',
+                          flexShrink: 0,
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        Open
+                      </Button>
+                    </Group>
+                  )}
+                </div>
+
+                {/* Bottom Footer Strip */}
+                <Group justify="space-between" align="center" wrap="nowrap" pt={isMobile ? 6 : 2} style={{ borderTop: isMobile ? '1px solid #f1f5f9' : 'none' }}>
+                  <Group gap={6} wrap="nowrap" align="center">
+                    <Box
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        backgroundColor: '#f1f5f9',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: isMobile ? '9.5px' : '10px',
+                        fontWeight: 500,
+                        color: '#475569',
+                      }}
+                    >
+                      <Box
+                        style={{
+                          width: 5,
+                          height: 5,
+                          borderRadius: '50%',
+                          backgroundColor: '#64748b',
+                        }}
+                      />
+                      <span>Added on {addedDateFormatted}</span>
+                    </Box>
+
+                    {/* Extension Badge */}
+                    <Box
+                      style={{
+                        backgroundColor: '#f0f7ff',
+                        border: '1px solid #bae6fd',
+                        borderRadius: '5px',
+                        padding: '2px 6px',
+                        fontSize: isMobile ? '9.5px' : '10px',
+                        fontWeight: 600,
+                        color: '#0284c7',
+                        fontFamily: 'var(--font-mono, monospace)',
+                      }}
+                    >
+                      .{extLabel}
+                    </Box>
+                  </Group>
+
+                  {/* On Mobile: Open CTA in footer row */}
+                  {isMobile && (
                     <Button
                       size="xs"
                       radius="sm"
-                      leftSection={<ExternalLink size={12} />}
                       rightSection={<ArrowRight size={12} />}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -899,62 +1051,17 @@ export default function CollectionHubView({
                         backgroundColor: '#185844',
                         color: '#ffffff',
                         fontWeight: 600,
-                        fontSize: '12px',
-                        height: '32px',
-                        padding: '0 12px',
-                        borderRadius: '8px',
-                        boxShadow: '0 2px 8px rgba(24, 88, 68, 0.22)',
+                        fontSize: '11.5px',
+                        height: '28px',
+                        padding: '0 10px',
+                        borderRadius: '7px',
+                        boxShadow: '0 2px 6px rgba(24, 88, 68, 0.2)',
                         flexShrink: 0,
-                        transition: 'all 0.15s ease',
                       }}
                     >
                       Open
                     </Button>
-                  </Group>
-                </div>
-
-                {/* Bottom Footer Strip: Added On Pill & Extension Badge */}
-                <Group justify="space-between" align="center" wrap="nowrap" pt={2}>
-                  {/* Added on Date Pill */}
-                  <Box
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      backgroundColor: '#f1f5f9',
-                      padding: '2px 8px',
-                      borderRadius: '999px',
-                      fontSize: '10px',
-                      fontWeight: 500,
-                      color: '#475569',
-                    }}
-                  >
-                    <Box
-                      style={{
-                        width: 5,
-                        height: 5,
-                        borderRadius: '50%',
-                        backgroundColor: '#64748b',
-                      }}
-                    />
-                    <span>Added on {addedDateFormatted}</span>
-                  </Box>
-
-                  {/* Extension Badge */}
-                  <Box
-                    style={{
-                      backgroundColor: '#f0f7ff',
-                      border: '1px solid #bae6fd',
-                      borderRadius: '5px',
-                      padding: '2px 6px',
-                      fontSize: '10px',
-                      fontWeight: 600,
-                      color: '#0284c7',
-                      fontFamily: 'var(--font-mono, monospace)',
-                    }}
-                  >
-                    {extLabel}
-                  </Box>
+                  )}
                 </Group>
               </Card>
             );

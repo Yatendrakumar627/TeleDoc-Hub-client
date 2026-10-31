@@ -12,12 +12,26 @@ export default function WorkspaceLayout({
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [sidebarOpened, setSidebarOpened] = useState(!isMobile);
 
-  // Auto-collapse sidebar on mobile when a document is selected for reading
+  // Auto-collapse sidebar on mobile when a document, collection, or group is selected
   useEffect(() => {
-    if (isMobile && sidebarProps?.selectedDocId) {
+    if (isMobile && (sidebarProps?.selectedDocId || sidebarProps?.selectedCollectionId || sidebarProps?.selectedGroupId)) {
       setSidebarOpened(false);
     }
-  }, [sidebarProps?.selectedDocId, isMobile]);
+  }, [sidebarProps?.selectedDocId, sidebarProps?.selectedCollectionId, sidebarProps?.selectedGroupId, isMobile]);
+
+  // Root cause fix: Prevent background scroll bleed when mobile sidebar drawer is open
+  useEffect(() => {
+    if (isMobile && sidebarOpened) {
+      const prevBodyOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = prevBodyOverflow || '';
+      };
+    } else {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    }
+  }, [isMobile, sidebarOpened]);
 
   // Global hotkey: Ctrl+B or Cmd+B toggles sidebar
   useEffect(() => {
@@ -34,6 +48,22 @@ export default function WorkspaceLayout({
   }, []);
 
   const toggleSidebar = () => setSidebarOpened((prev) => !prev);
+
+  // Wrapped handlers to ensure mobile sidebar collapses cleanly on any navigation click
+  const handleSelectDoc = (docId) => {
+    if (isMobile) setSidebarOpened(false);
+    sidebarProps?.onSelectDoc?.(docId);
+  };
+
+  const handleSelectCollection = (col) => {
+    if (isMobile) setSidebarOpened(false);
+    sidebarProps?.onSelectCollection?.(col);
+  };
+
+  const handleSelectGroup = (grp) => {
+    if (isMobile) setSidebarOpened(false);
+    sidebarProps?.onSelectGroup?.(grp);
+  };
 
   return (
     <AppShell
@@ -53,6 +83,7 @@ export default function WorkspaceLayout({
           width: isMobile ? 'min(315px, 80vw) !important' : '350px',
           maxWidth: isMobile ? '82vw !important' : '350px',
           boxShadow: isMobile && sidebarOpened ? '12px 0 35px rgba(16, 47, 39, 0.35)' : undefined,
+          overscrollBehavior: 'contain',
         },
         main: {
           backgroundColor: 'var(--surface-app)',
@@ -64,6 +95,9 @@ export default function WorkspaceLayout({
       <AppShell.Navbar>
         <Sidebar
           {...sidebarProps}
+          onSelectDoc={handleSelectDoc}
+          onSelectCollection={handleSelectCollection}
+          onSelectGroup={handleSelectGroup}
           onCollapseSidebar={() => setSidebarOpened(false)}
         />
       </AppShell.Navbar>
@@ -72,7 +106,16 @@ export default function WorkspaceLayout({
         {/* Mobile Scrim / Backdrop with peek area: Tapping anywhere on the remaining ratio area closes sidebar */}
         {isMobile && sidebarOpened && (
           <Box
+            className="sidebar-mobile-backdrop"
             onClick={() => setSidebarOpened(false)}
+            onTouchMove={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onWheel={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
             style={{
               position: 'fixed',
               top: 0,
@@ -85,6 +128,7 @@ export default function WorkspaceLayout({
               zIndex: 90,
               cursor: 'pointer',
               transition: 'opacity 0.2s ease',
+              touchAction: 'none',
             }}
           >
             {/* Peek Action Badge on the remaining right margin */}
@@ -108,16 +152,14 @@ export default function WorkspaceLayout({
           </Box>
         )}
 
-        <Stack gap={0} h="100%">
-          <Topbar
-            {...topbarProps}
-            sidebarOpened={sidebarOpened}
-            onToggleSidebar={toggleSidebar}
-          />
-          <Box style={{ flex: 1, overflowY: 'auto' }}>
-            {children}
-          </Box>
-        </Stack>
+        <Topbar
+          {...topbarProps}
+          sidebarOpened={sidebarOpened}
+          onToggleSidebar={toggleSidebar}
+        />
+        <Box style={{ width: '100%', minHeight: 'calc(100vh - 65px)' }}>
+          {children}
+        </Box>
       </AppShell.Main>
     </AppShell>
   );
