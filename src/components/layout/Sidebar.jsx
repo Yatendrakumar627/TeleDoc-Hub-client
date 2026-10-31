@@ -40,11 +40,14 @@ import {
   Tag,
   PanelLeftClose,
   GripVertical,
+  ArrowUpDown,
 } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
+import { useDebouncedValue } from '@mantine/hooks';
 import TelegramStatusPill from '../ui/TelegramStatusPill';
 import SearchFilterInput from '../ui/SearchFilterInput';
 import FileCard from '../../features/library/FileCard';
+import { extractDateFromName } from '../../utils/formatters';
 import { getCollections, createCollection, reorderCollections, reorderGroups } from '../../services/apiClient';
 
 export default function Sidebar({
@@ -72,6 +75,8 @@ export default function Sidebar({
   statusLoading,
 }) {
   const [search, setSearch] = useState('');
+  const [debouncedSearch] = useDebouncedValue(search, 160);
+  const [flatDisplayCount, setFlatDisplayCount] = useState(40);
   const [scopeFilter, setScopeFilter] = useState('all'); // 'all', 'professional', 'personal'
   const [groupFilter, setGroupFilter] = useState('all'); // 'all', 'grp_id', etc.
   const [yearFilter, setYearFilter] = useState('all');   // 'all', '2026', etc.
@@ -79,6 +84,17 @@ export default function Sidebar({
   const [sortBy, setSortBy] = useState('newest'); // 'newest', 'oldest', 'name', 'size'
   const [confidentialOnly, setConfidentialOnly] = useState(false);
   const [viewMode, setViewMode] = useState('collections'); // 'collections' | 'groups' | 'flat'
+
+  // Reset flat list display count whenever filters or search change
+  useEffect(() => {
+    setFlatDisplayCount(40);
+  }, [debouncedSearch, scopeFilter, groupFilter, formatFilter, yearFilter, confidentialOnly, sortBy, viewMode]);
+
+  // Currently active/open document in viewer
+  const activeDoc = useMemo(
+    () => (selectedDocId ? documents.find((d) => d.id === selectedDocId) : null),
+    [documents, selectedDocId]
+  );
 
   // Collections state
   const [collections, setCollections] = useState([]);
@@ -170,6 +186,9 @@ export default function Sidebar({
     }
 
     newCollections.splice(targetIndex, 0, movedItem);
+
+    // Switch to custom order when dragged
+    setSortBy('custom');
 
     // Optimistic UI state update
     setCollections(newCollections);
@@ -267,18 +286,11 @@ export default function Sidebar({
   const workDocCount = useMemo(() => documents.filter((d) => d.scope === 'professional').length, [documents]);
   const personalDocCount = useMemo(() => documents.filter((d) => d.scope === 'personal').length, [documents]);
 
-  // Load collections
+  // Load collections (all folders collapsed by default)
   const loadCollections = async () => {
     try {
       const data = await getCollections('all');
       setCollections(data);
-
-      // Expand user collections by default, keep unassigned unfiled files collapsed
-      const initialExpanded = { unassigned: false };
-      data.forEach((c) => {
-        initialExpanded[c.id] = true;
-      });
-      setExpandedFolders((prev) => ({ ...initialExpanded, ...prev }));
     } catch (err) {
       console.warn('Sidebar collections fetch warning:', err.message);
     }
@@ -406,12 +418,12 @@ export default function Sidebar({
 
   // Multi-dimensional filtering and sorting logic
   const filteredDocs = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
     return documents
       .filter((doc) => {
         // 1. Text Search (title, filename, tags, collection)
-        const q = search.toLowerCase();
         const matchesSearch =
-          !search ||
+          !q ||
           doc.title.toLowerCase().includes(q) ||
           (doc.filename && doc.filename.toLowerCase().includes(q)) ||
           (doc.collectionName && doc.collectionName.toLowerCase().includes(q)) ||
@@ -485,7 +497,7 @@ export default function Sidebar({
         // Default: 'newest'
         return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
       });
-  }, [documents, search, scopeFilter, groupFilter, formatFilter, yearFilter, confidentialOnly, sortBy, groups]);
+  }, [documents, debouncedSearch, scopeFilter, groupFilter, formatFilter, yearFilter, confidentialOnly, sortBy, groups]);
 
   // Group filtered docs by Collection (strictly preserves user-defined collection order)
   const groupedCollections = useMemo(() => {
@@ -515,11 +527,61 @@ export default function Sidebar({
       }
     });
 
+    // Sort folders according to sortBy (Name-wise, Date-wise, or custom draggable order)
+    if (sortBy === 'name') {
+      collectionsList.sort((a, b) =>
+        (a.collection.name || '').localeCompare(b.collection.name || '', undefined, {
+          numeric: true,
+          sensitivity: 'base',
+        })
+      );
+    } else if (sortBy === 'newest') {
+      collectionsList.sort((a, b) => {
+        const dateA = extractDateFromName(a.collection.name, a.collection.createdAt);
+        const dateB = extractDateFromName(b.collection.name, b.collection.createdAt);
+        if (dateA !== dateB) return dateB - dateA;
+        return (a.collection.order ?? 0) - (b.collection.order ?? 0);
+      });
+    } else if (sortBy === 'oldest') {
+      collectionsList.sort((a, b) => {
+        const dateA = extractDateFromName(a.collection.name, a.collection.createdAt);
+        const dateB = extractDateFromName(b.collection.name, b.collection.createdAt);
+        if (dateA !== dateB) return dateA - dateB;
+        return (a.collection.order ?? 0) - (b.collection.order ?? 0);
+      });
+    }
+
     return {
       collectionsList,
       unassignedFiles,
     };
-  }, [collections, filteredDocs, scopeFilter]);
+  }, [collections, filteredDocs, scopeFilter, sortBy]);
+
+  // High-performance O(1) Hash Maps to avoid running nested .filter() queries inside render loops
+  const { filesByCollectionId, directFilesByGroupId } = useMemo(() => {
+    const colMap = {};
+    const grpMap = {};
+
+    for (let i = 0; i < filteredDocs.length; i++) {
+      const doc = filteredDocs[i];
+      if (doc.collectionId) {
+        if (!colMap[doc.collectionId]) colMap[doc.collectionId] = [];
+        colMap[doc.collectionId].push(doc);
+      } else {
+        const gId = doc.groupId;
+        const gName = doc.taxonomy?.group ? doc.taxonomy.group.toLowerCase() : null;
+        if (gId) {
+          if (!grpMap[gId]) grpMap[gId] = [];
+          grpMap[gId].push(doc);
+        }
+        if (gName && gName !== gId) {
+          if (!grpMap[gName]) grpMap[gName] = [];
+          grpMap[gName].push(doc);
+        }
+      }
+    }
+    return { filesByCollectionId: colMap, directFilesByGroupId: grpMap };
+  }, [filteredDocs]);
 
   // Available groups for dropdown filter: Strictly actual user-created groups
   const availableGroups = useMemo(() => {
@@ -590,6 +652,57 @@ export default function Sidebar({
       <Box mt={2}>
         <TelegramStatusPill status={status} loading={statusLoading} />
       </Box>
+
+      {/* Active Open Document Quick-Jump Banner */}
+      {activeDoc && (
+        <Paper
+          p="xs"
+          px="sm"
+          radius="md"
+          style={{
+            background: 'linear-gradient(135deg, #edf4f0 0%, #FAF7F2 100%)',
+            border: '1px solid var(--brand-primary-border)',
+            borderLeft: '3.5px solid var(--brand-primary)',
+            boxShadow: '0 2px 8px rgba(24, 88, 68, 0.08)',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
+          }}
+          onClick={onCollapseSidebar}
+        >
+          <Group justify="space-between" align="center" wrap="nowrap">
+            <Group gap={8} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+              <Box
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: '50%',
+                  backgroundColor: '#10b981',
+                  boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.3)',
+                  flexShrink: 0,
+                }}
+              />
+              <Box style={{ minWidth: 0, flex: 1 }}>
+                <Text size="10px" fw={700} c="emerald" tt="uppercase" style={{ letterSpacing: '0.04em', lineHeight: 1.2 }}>
+                  Currently Open File
+                </Text>
+                <Text size="xs" fw={600} truncate c="var(--text-primary)" style={{ lineHeight: 1.2 }}>
+                  {activeDoc.title || activeDoc.filename}
+                </Text>
+              </Box>
+            </Group>
+
+            <Button
+              size="compact-xs"
+              variant="filled"
+              color="emerald"
+              radius="xl"
+              style={{ fontSize: '10px', height: '22px', padding: '0 8px', flexShrink: 0 }}
+            >
+              View →
+            </Button>
+          </Group>
+        </Paper>
+      )}
 
       {/* Scope Selector: All | Work | Personal */}
       <SegmentedControl
@@ -694,11 +807,22 @@ export default function Sidebar({
                 value: g.value || g.id || '',
               })),
             ]}
-            comboboxProps={{ width: 180, position: 'bottom-start', withinPortal: true, shadow: 'md' }}
+            comboboxProps={{ position: 'bottom-start', withinPortal: true, shadow: 'md' }}
             allowDeselect={false}
             styles={{
-              input: { fontSize: '11.5px', height: '32px', minHeight: '32px', padding: '0 8px' },
-              option: { fontSize: '12px', whiteSpace: 'nowrap' },
+              input: {
+                fontSize: '11.5px',
+                fontWeight: 500,
+                height: '32px',
+                minHeight: '32px',
+                padding: '0 10px',
+                borderRadius: '8px',
+                borderColor: 'var(--border-subtle)',
+                backgroundColor: 'var(--surface-card)',
+                color: 'var(--text-primary)',
+              },
+              dropdown: { minWidth: '175px', width: 'max-content', padding: '4px' },
+              option: { fontSize: '12px', whiteSpace: 'nowrap', padding: '6px 12px' },
             }}
           />
         )}
@@ -712,11 +836,22 @@ export default function Sidebar({
             { label: 'All Time', value: 'all' },
             ...availableYears.map((y) => ({ label: y, value: y })),
           ]}
-          comboboxProps={{ width: 160, position: 'bottom-start', withinPortal: true, shadow: 'md' }}
+          comboboxProps={{ position: 'bottom-start', withinPortal: true, shadow: 'md' }}
           allowDeselect={false}
           styles={{
-            input: { fontSize: '11.5px', height: '32px', minHeight: '32px', padding: '0 8px' },
-            option: { fontSize: '12px', whiteSpace: 'nowrap' },
+            input: {
+              fontSize: '11.5px',
+              fontWeight: 500,
+              height: '32px',
+              minHeight: '32px',
+              padding: '0 10px',
+              borderRadius: '8px',
+              borderColor: 'var(--border-subtle)',
+              backgroundColor: 'var(--surface-card)',
+              color: 'var(--text-primary)',
+            },
+            dropdown: { minWidth: '160px', width: 'max-content', padding: '4px' },
+            option: { fontSize: '12px', whiteSpace: 'nowrap', padding: '6px 12px' },
           }}
         />
       </Group>
@@ -727,19 +862,32 @@ export default function Sidebar({
           size="xs"
           placeholder="Sort By"
           value={sortBy}
+          leftSection={<ArrowUpDown size={13} style={{ color: 'var(--text-tertiary)' }} />}
           onChange={(val) => setSortBy(val || 'newest')}
           data={[
-            { label: '⚡ Newest Upload', value: 'newest' },
-            { label: '⏱️ Oldest Upload', value: 'oldest' },
-            { label: '🔤 Name (A-Z)', value: 'name' },
-            { label: '📦 File Size', value: 'size' },
+            { label: 'Newest (Date)', value: 'newest' },
+            { label: 'Oldest (Date)', value: 'oldest' },
+            { label: 'Name (A - Z)', value: 'name' },
+            { label: 'File Size', value: 'size' },
+            { label: 'Custom / Drag Order', value: 'custom' },
           ]}
-          comboboxProps={{ width: 190, position: 'bottom-start', withinPortal: true, shadow: 'md' }}
+          comboboxProps={{ position: 'bottom-start', withinPortal: true, shadow: 'md' }}
           allowDeselect={false}
           style={{ flex: 1 }}
           styles={{
-            input: { fontSize: '11.5px', height: '32px', minHeight: '32px', padding: '0 8px' },
-            option: { fontSize: '12px', whiteSpace: 'nowrap' },
+            input: {
+              fontSize: '11.5px',
+              fontWeight: 500,
+              height: '32px',
+              minHeight: '32px',
+              padding: '0 8px',
+              borderRadius: '8px',
+              borderColor: 'var(--border-subtle)',
+              backgroundColor: 'var(--surface-card)',
+              color: 'var(--text-primary)',
+            },
+            dropdown: { minWidth: '185px', width: 'max-content', padding: '4px' },
+            option: { fontSize: '12px', whiteSpace: 'nowrap', padding: '6px 12px' },
           }}
         />
 
@@ -751,13 +899,14 @@ export default function Sidebar({
             color={confidentialOnly ? 'gold' : 'gray'}
             style={{
               flexShrink: 0,
-              backgroundColor: confidentialOnly ? 'var(--brand-gold)' : undefined,
-              color: confidentialOnly ? '#ffffff' : undefined,
+              backgroundColor: confidentialOnly ? 'var(--brand-gold)' : 'var(--surface-card)',
+              color: confidentialOnly ? '#ffffff' : 'var(--text-secondary)',
               border: confidentialOnly ? 'none' : '1px solid var(--border-subtle)',
+              transition: 'all 0.15s ease',
             }}
             onClick={() => setConfidentialOnly(!confidentialOnly)}
           >
-            <Lock size={15} />
+            <Lock size={14} />
           </ActionIcon>
         </Tooltip>
       </Group>
@@ -823,19 +972,12 @@ export default function Sidebar({
                   (c) => c.groupId === grp.id || c.groupName === grp.name
                 );
 
-                // Member direct files in this group (MUST EXCLUDE files already in a collection)
-                const memberDocs = filteredDocs.filter(
-                  (d) =>
-                    !d.collectionId &&
-                    (d.groupId === grp.id ||
-                    (d.taxonomy?.group && d.taxonomy.group.toLowerCase() === grp.name.toLowerCase()) ||
-                    (d.taxonomy?.group && d.taxonomy.group.toLowerCase() === grp.slug))
-                );
+                // Member direct files in this group (O(1) lookup)
+                const memberDocs = directFilesByGroupId[grp.id] || directFilesByGroupId[grp.name?.toLowerCase()] || [];
 
-                // Accurate count: direct files + files inside member collections
+                // Accurate count: direct files + files inside member collections (O(1) lookup)
                 const totalGroupFiles = memberDocs.length + memberCols.reduce((acc, c) => {
-                  const cFiles = filteredDocs.filter((d) => d.collectionId === c.id);
-                  return acc + cFiles.length;
+                  return acc + (filesByCollectionId[c.id]?.length || 0);
                 }, 0);
 
                 const isDropTargetBefore = dropTargetGroupId === grp.id && groupDropPosition === 'before';
@@ -1064,123 +1206,130 @@ export default function Sidebar({
 
                     {/* Group Inner Content (Collections + Files) */}
                     <Collapse in={isExpanded}>
-                      <Box className="sidebar-card-content" p="xs" pt={4} style={{ borderTop: '1px solid #f1f5f9', backgroundColor: '#fafafa', borderRadius: '0 0 9px 9px' }}>
-                        {/* Member Collections */}
-                        {memberCols.length > 0 && (
-                          <Box mb="xs">
-                            <Text size="10px" fw={700} c="dimmed" tt="uppercase" px={4} mb={2}>
-                              📁 Collections ({memberCols.length})
-                            </Text>
-                            <Stack gap={3}>
-                              {memberCols.map((c) => {
-                                const isColExpanded = !!expandedFolders[c.id];
-                                const isColSelected = selectedCollectionId === c.id;
-                                const cFiles = filteredDocs.filter((d) => d.collectionId === c.id);
+                      {isExpanded && (
+                        <Box className="sidebar-card-content" p="xs" pt={4} style={{ borderTop: '1px solid #f1f5f9', backgroundColor: '#fafafa', borderRadius: '0 0 9px 9px' }}>
+                          {/* Member Collections */}
+                          {memberCols.length > 0 && (
+                            <Box mb="xs">
+                              <Text size="10px" fw={700} c="dimmed" tt="uppercase" px={4} mb={2}>
+                                📁 Collections ({memberCols.length})
+                              </Text>
+                              <Stack gap={3}>
+                                {memberCols.map((c) => {
+                                  const isColExpanded = !!expandedFolders[c.id];
+                                  const isColSelected = selectedCollectionId === c.id;
+                                  const cFiles = filesByCollectionId[c.id] || [];
 
-                                return (
-                                  <Box
-                                    key={c.id}
-                                    style={{
-                                      borderRadius: 8,
-                                      border: isColSelected ? '1px solid var(--brand-primary)' : '1px solid var(--border-subtle)',
-                                      backgroundColor: isColSelected ? 'var(--surface-selected)' : '#ffffff',
-                                      overflow: 'hidden',
-                                    }}
-                                  >
+                                  return (
                                     <Box
-                                      p={6}
-                                      px={8}
+                                      key={c.id}
                                       style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        cursor: 'pointer',
+                                        borderRadius: 8,
+                                        border: isColSelected ? '1px solid var(--brand-primary)' : '1px solid var(--border-subtle)',
+                                        backgroundColor: isColSelected ? 'var(--surface-selected)' : '#ffffff',
+                                        overflow: 'hidden',
                                       }}
-                                      onClick={() => onSelectCollection && onSelectCollection(c)}
                                     >
-                                      <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
-                                        <ActionIcon
-                                          size="xs"
-                                          variant="subtle"
-                                          color="gray"
-                                          onClick={(e) => toggleFolder(c.id, e)}
-                                        >
-                                          {isColExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-                                        </ActionIcon>
-                                        {isColExpanded ? (
-                                          <FolderOpen size={14} color="var(--brand-gold)" />
-                                        ) : (
-                                          <Folder size={14} color="var(--brand-gold)" />
-                                        )}
-                                        <Text size="xs" truncate fw={isColSelected ? 600 : 500} style={{ color: 'var(--brand-forest)' }}>
-                                          {c.name}
-                                        </Text>
-                                      </Group>
-
-                                      <Badge size="xs" variant={isColSelected ? 'filled' : 'light'} color={isColSelected ? 'emerald' : 'gold'}>
-                                        {cFiles.length}
-                                      </Badge>
-                                    </Box>
-
-                                    {/* Files inside collection in this group: Only shown when opened */}
-                                    <Collapse in={isColExpanded}>
-                                      <Stack gap={4} p="xs" pl="sm" style={{ borderTop: '1px solid var(--border-subtle)', backgroundColor: '#fafaf9' }}>
-                                        {cFiles.length === 0 ? (
-                                          <Text size="xs" c="dimmed" fs="italic" py={2} px={4}>
-                                            No files in this collection
+                                      <Box
+                                        p={6}
+                                        px={8}
+                                        style={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'space-between',
+                                          cursor: 'pointer',
+                                        }}
+                                        onClick={() => onSelectCollection && onSelectCollection(c)}
+                                      >
+                                        <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+                                          <ActionIcon
+                                            size="xs"
+                                            variant="subtle"
+                                            color="gray"
+                                            onClick={(e) => toggleFolder(c.id, e)}
+                                          >
+                                            {isColExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                                          </ActionIcon>
+                                          {isColExpanded ? (
+                                            <FolderOpen size={14} color="var(--brand-gold)" />
+                                          ) : (
+                                            <Folder size={14} color="var(--brand-gold)" />
+                                          )}
+                                          <Text size="xs" truncate fw={isColSelected ? 600 : 500} style={{ color: 'var(--brand-forest)' }}>
+                                            {c.name}
                                           </Text>
-                                        ) : (
-                                          cFiles.map((doc) => (
-                                            <FileCard
-                                              key={doc.id}
-                                              document={doc}
-                                              isSelected={doc.id === selectedDocId}
-                                              collections={collections}
-                                              onSelect={onSelectDoc}
-                                              onDelete={onDeleteDoc}
-                                              onRename={onRenameDoc}
-                                              onAssignCollection={onAssignCollection}
-                                            />
-                                          ))
+                                        </Group>
+
+                                        <Badge size="xs" variant={isColSelected ? 'filled' : 'light'} color={isColSelected ? 'emerald' : 'gold'}>
+                                          {cFiles.length}
+                                        </Badge>
+                                      </Box>
+
+                                      {/* Files inside collection in this group: Only shown when opened */}
+                                      <Collapse in={isColExpanded}>
+                                        {isColExpanded && (
+                                          <Stack gap={4} p="xs" pl="sm" style={{ borderTop: '1px solid var(--border-subtle)', backgroundColor: '#fafaf9' }}>
+                                            {cFiles.length === 0 ? (
+                                              <Text size="xs" c="dimmed" fs="italic" py={2} px={4}>
+                                                No files in this collection
+                                              </Text>
+                                            ) : (
+                                              cFiles.map((doc) => (
+                                                <FileCard
+                                                  key={doc.id}
+                                                  document={doc}
+                                                  isSelected={doc.id === selectedDocId}
+                                                  collections={collections}
+                                                  hideCollectionBadge={true}
+                                                  hideGroupBadge={true}
+                                                  onSelect={onSelectDoc}
+                                                  onDelete={onDeleteDoc}
+                                                  onRename={onRenameDoc}
+                                                  onAssignCollection={onAssignCollection}
+                                                />
+                                              ))
+                                            )}
+                                          </Stack>
                                         )}
-                                      </Stack>
-                                    </Collapse>
-                                  </Box>
-                                );
-                              })}
-                            </Stack>
-                          </Box>
-                        )}
+                                      </Collapse>
+                                    </Box>
+                                  );
+                                })}
+                              </Stack>
+                            </Box>
+                          )}
 
-                        {/* Member Files */}
-                        {memberDocs.length > 0 && (
-                          <Box>
-                            <Text size="10px" fw={700} c="dimmed" tt="uppercase" px={4} mb={2}>
-                              📄 Direct Files ({memberDocs.length})
+                          {/* Member Files */}
+                          {memberDocs.length > 0 && (
+                            <Box>
+                              <Text size="10px" fw={700} c="dimmed" tt="uppercase" px={4} mb={2}>
+                                📄 Direct Files ({memberDocs.length})
+                              </Text>
+                              <Stack gap={2}>
+                                {memberDocs.map((doc) => (
+                                  <FileCard
+                                    key={doc.id}
+                                    document={doc}
+                                    isSelected={doc.id === selectedDocId}
+                                    collections={collections}
+                                    hideGroupBadge={true}
+                                    onSelect={onSelectDoc}
+                                    onDelete={onDeleteDoc}
+                                    onRename={onRenameDoc}
+                                    onAssignCollection={onAssignCollection}
+                                  />
+                                ))}
+                              </Stack>
+                            </Box>
+                          )}
+
+                          {memberCols.length === 0 && memberDocs.length === 0 && (
+                            <Text size="xs" c="dimmed" ta="center" py="xs">
+                              Empty Group
                             </Text>
-                            <Stack gap={2}>
-                              {memberDocs.map((doc) => (
-                                <FileCard
-                                  key={doc.id}
-                                  document={doc}
-                                  isSelected={doc.id === selectedDocId}
-                                  collections={collections}
-                                  onSelect={onSelectDoc}
-                                  onDelete={onDeleteDoc}
-                                  onRename={onRenameDoc}
-                                  onAssignCollection={onAssignCollection}
-                                />
-                              ))}
-                            </Stack>
-                          </Box>
-                        )}
-
-                        {memberCols.length === 0 && memberDocs.length === 0 && (
-                          <Text size="xs" c="dimmed" ta="center" py="xs">
-                            Empty Group
-                          </Text>
-                        )}
-                      </Box>
+                          )}
+                        </Box>
+                      )}
                     </Collapse>
                   </Box>
                 );
@@ -1443,26 +1592,29 @@ export default function Sidebar({
 
                     {/* Collapsible List of Individual Files inside this Collection */}
                     <Collapse in={isExpanded}>
-                      <Stack className="sidebar-card-content" gap={4} p="xs" pl="md">
-                        {colFiles.length === 0 ? (
-                          <Text size="xs" c="dimmed" fs="italic" py={2}>
-                            No files in this collection
-                          </Text>
-                        ) : (
-                          colFiles.map((doc) => (
-                            <FileCard
-                              key={doc.id}
-                              document={doc}
-                              isSelected={doc.id === selectedDocId}
-                              collections={collections}
-                              onSelect={onSelectDoc}
-                              onDelete={onDeleteDoc}
-                              onRename={onRenameDoc}
-                              onAssignCollection={onAssignCollection}
-                            />
-                          ))
-                        )}
-                      </Stack>
+                      {isExpanded && (
+                        <Stack className="sidebar-card-content" gap={4} p="xs" pl="md">
+                          {colFiles.length === 0 ? (
+                            <Text size="xs" c="dimmed" fs="italic" py={2}>
+                              No files in this collection
+                            </Text>
+                          ) : (
+                            colFiles.map((doc) => (
+                              <FileCard
+                                key={doc.id}
+                                document={doc}
+                                isSelected={doc.id === selectedDocId}
+                                collections={collections}
+                                hideCollectionBadge={true}
+                                onSelect={onSelectDoc}
+                                onDelete={onDeleteDoc}
+                                onRename={onRenameDoc}
+                                onAssignCollection={onAssignCollection}
+                              />
+                            ))
+                          )}
+                        </Stack>
+                      )}
                     </Collapse>
                   </Box>
                 );
@@ -1487,7 +1639,7 @@ export default function Sidebar({
               )}
             </>
           ) : (
-            // ================= FLAT LIST VIEW =================
+            // ================= FLAT LIST VIEW (Progressive Windowing) =================
             filteredDocs.length === 0 ? (
               <Box py="xl" ta="center">
                 <Text size="sm" c="dimmed">
@@ -1495,18 +1647,38 @@ export default function Sidebar({
                 </Text>
               </Box>
             ) : (
-              filteredDocs.map((doc) => (
-                <FileCard
-                  key={doc.id}
-                  document={doc}
-                  isSelected={doc.id === selectedDocId}
-                  collections={collections}
-                  onSelect={onSelectDoc}
-                  onDelete={onDeleteDoc}
-                  onRename={onRenameDoc}
-                  onAssignCollection={onAssignCollection}
-                />
-              ))
+              <>
+                {filteredDocs.slice(0, flatDisplayCount).map((doc) => (
+                  <FileCard
+                    key={doc.id}
+                    document={doc}
+                    isSelected={doc.id === selectedDocId}
+                    collections={collections}
+                    onSelect={onSelectDoc}
+                    onDelete={onDeleteDoc}
+                    onRename={onRenameDoc}
+                    onAssignCollection={onAssignCollection}
+                  />
+                ))}
+
+                {filteredDocs.length > flatDisplayCount && (
+                  <Button
+                    fullWidth
+                    variant="subtle"
+                    color="emerald"
+                    size="xs"
+                    my="xs"
+                    onClick={() => setFlatDisplayCount((prev) => prev + 40)}
+                    style={{
+                      border: '1px dashed var(--brand-primary-border)',
+                      backgroundColor: 'var(--surface-card)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Load More Files ({Math.min(flatDisplayCount, filteredDocs.length)} of {filteredDocs.length})
+                  </Button>
+                )}
+              </>
             )
           )}
         </Stack>

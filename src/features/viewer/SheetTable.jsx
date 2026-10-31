@@ -12,7 +12,7 @@ import {
   Divider,
   ActionIcon,
 } from '@mantine/core';
-import { Table2, Download, ShieldCheck, ExternalLink, FileSpreadsheet, Lock, X } from 'lucide-react';
+import { Table2, Download, ShieldCheck, ExternalLink, FileSpreadsheet, Lock, X, ArrowLeft } from 'lucide-react';
 import SourceBadge from '../../components/ui/SourceBadge';
 import SearchFilterInput from '../../components/ui/SearchFilterInput';
 import DataTable from '../../components/ui/DataTable';
@@ -160,52 +160,87 @@ export default function SheetTable({ document, content, onRenameFile, onCloseFil
               </Text>
             </Box>
 
-            <Group gap="xs">
-              <Button
-                component="a"
-                href={downloadOriginalUrl}
-                download={document?.filename}
-                size="xs"
-                variant="light"
-                color="green"
-                leftSection={<Download size={13} />}
-              >
-                Download Original
-              </Button>
-
+            <Group gap="xs" align="center" wrap="nowrap">
               <Tooltip
                 label={`Telegram file_id: ${document?.telegramFileId || 'N/A'}`}
                 withArrow
                 position="bottom-end"
               >
                 <Badge
-                  variant="outline"
+                  variant="light"
                   color="teal"
                   size="sm"
                   leftSection={<ShieldCheck size={12} />}
-                  className="mono-badge"
+                  style={{
+                    height: 32,
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(24, 88, 68, 0.08)',
+                    color: 'var(--brand-forest)',
+                    border: '1px solid rgba(24, 88, 68, 0.2)',
+                  }}
                 >
                   Vault Synced
                 </Badge>
               </Tooltip>
 
+              <Button
+                component="a"
+                href={downloadOriginalUrl}
+                download={document?.filename}
+                size="xs"
+                variant="filled"
+                leftSection={<Download size={13} />}
+                style={{
+                  height: 32,
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--brand-forest)',
+                  color: '#ffffff',
+                  boxShadow: '0 2px 6px rgba(24, 88, 68, 0.2)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                Download Spreadsheet
+              </Button>
+
               {onCloseFile && (
-                <Tooltip label="Close file preview (Esc)" withArrow position="bottom-end">
+                <Tooltip
+                  label={
+                    document?.collectionName && document.collectionName !== 'Unassigned'
+                      ? `Back to "${document.collectionName}" folder (Esc)`
+                      : 'Close file preview (Esc)'
+                  }
+                  withArrow
+                  position="bottom-end"
+                >
                   <Button
                     size="xs"
                     variant="subtle"
                     color="gray"
-                    leftSection={<X size={14} />}
+                    leftSection={
+                      document?.collectionName && document.collectionName !== 'Unassigned' ? (
+                        <ArrowLeft size={14} />
+                      ) : (
+                        <X size={14} />
+                      )
+                    }
                     onClick={onCloseFile}
                     style={{
+                      height: 32,
+                      borderRadius: '8px',
                       border: '1px solid var(--border-subtle)',
                       backgroundColor: 'var(--surface-card)',
-                      color: 'var(--text-secondary)',
+                      color: 'var(--text-primary)',
                       fontWeight: 600,
+                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    Close (Esc)
+                    {document?.collectionName && document.collectionName !== 'Unassigned'
+                      ? 'Back to Folder (Esc)'
+                      : 'Close (Esc)'}
                   </Button>
                 </Tooltip>
               )}

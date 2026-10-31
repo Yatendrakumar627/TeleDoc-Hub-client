@@ -25,6 +25,7 @@ import {
   FileText,
   Layers,
   X,
+  ArrowLeft,
 } from 'lucide-react';
 import SourceBadge from '../../components/ui/SourceBadge';
 import EditableDocumentTitle from '../../components/ui/EditableDocumentTitle';
@@ -141,13 +142,40 @@ export default function PresentationViewer({ document, content, onRenameFile, on
 
               <Tooltip label={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Slideshow'} withArrow>
                 <ActionIcon
-                  size="md"
-                  variant="default"
+                  size="sm"
+                  variant="subtle"
+                  color="gray"
                   onClick={() => setIsFullscreen(!isFullscreen)}
+                  style={{
+                    height: 32,
+                    width: 32,
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: 'var(--surface-card)',
+                    color: 'var(--text-secondary)',
+                  }}
                 >
                   {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
                 </ActionIcon>
               </Tooltip>
+
+              <Badge
+                variant="light"
+                color="teal"
+                size="sm"
+                leftSection={<ShieldCheck size={12} />}
+                style={{
+                  height: 32,
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(24, 88, 68, 0.08)',
+                  color: 'var(--brand-forest)',
+                  border: '1px solid rgba(24, 88, 68, 0.2)',
+                }}
+              >
+                Vault Synced
+              </Badge>
 
               <Button
                 component="a"
@@ -155,39 +183,56 @@ export default function PresentationViewer({ document, content, onRenameFile, on
                 download={document.filename}
                 size="xs"
                 variant="filled"
-                color="orange"
                 leftSection={<Download size={13} />}
+                style={{
+                  height: 32,
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--brand-forest)',
+                  color: '#ffffff',
+                  boxShadow: '0 2px 6px rgba(24, 88, 68, 0.2)',
+                  transition: 'all 0.15s ease',
+                }}
               >
                 Download PPTX
               </Button>
 
-              <Badge
-                variant="outline"
-                color="teal"
-                size="sm"
-                leftSection={<ShieldCheck size={12} />}
-                className="mono-badge"
-              >
-                Vault Synced
-              </Badge>
-
               {onCloseFile && (
-                <Tooltip label="Close file preview (Esc)" withArrow position="bottom-end">
+                <Tooltip
+                  label={
+                    document?.collectionName && document.collectionName !== 'Unassigned'
+                      ? `Back to "${document.collectionName}" folder (Esc)`
+                      : 'Close file preview (Esc)'
+                  }
+                  withArrow
+                  position="bottom-end"
+                >
                   <Button
                     size="xs"
                     variant="subtle"
                     color="gray"
-                    leftSection={<X size={14} />}
+                    leftSection={
+                      document?.collectionName && document.collectionName !== 'Unassigned' ? (
+                        <ArrowLeft size={14} />
+                      ) : (
+                        <X size={14} />
+                      )
+                    }
                     onClick={onCloseFile}
                     style={{
+                      height: 32,
+                      borderRadius: '8px',
                       border: '1px solid var(--border-subtle)',
                       backgroundColor: 'var(--surface-card)',
-                      color: 'var(--text-secondary)',
+                      color: 'var(--text-primary)',
                       fontWeight: 600,
+                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    Close (Esc)
+                    {document?.collectionName && document.collectionName !== 'Unassigned'
+                      ? 'Back to Folder (Esc)'
+                      : 'Close (Esc)'}
                   </Button>
                 </Tooltip>
               )}

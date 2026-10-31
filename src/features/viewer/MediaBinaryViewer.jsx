@@ -36,6 +36,7 @@ import {
   Grid,
   Sparkles,
   X,
+  ArrowLeft,
 } from 'lucide-react';
 import SourceBadge from '../../components/ui/SourceBadge';
 import SearchFilterInput from '../../components/ui/SearchFilterInput';
@@ -281,47 +282,82 @@ export default function MediaBinaryViewer({ document, content, onRenameFile, onC
                 />
               )}
 
-              <Button
-                component="a"
-                href={downloadUrl}
-                download={document.filename}
-                size="xs"
-                variant="filled"
-                className="btn-premium-primary"
-                leftSection={<Download size={14} />}
-              >
-                Download File
-              </Button>
-
               <Tooltip label="Decrypted in memory. Telegram file storage verified." withArrow>
                 <Badge
                   variant="light"
                   color="teal"
                   size="sm"
                   leftSection={<ShieldCheck size={12} />}
-                  className="mono-badge badge-emerald"
+                  style={{
+                    height: 32,
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(24, 88, 68, 0.08)',
+                    color: 'var(--brand-forest)',
+                    border: '1px solid rgba(24, 88, 68, 0.2)',
+                  }}
                 >
                   Vault Synced
                 </Badge>
               </Tooltip>
 
+              <Button
+                component="a"
+                href={downloadUrl}
+                download={document.filename}
+                size="xs"
+                variant="filled"
+                leftSection={<Download size={13} />}
+                style={{
+                  height: 32,
+                  fontWeight: 600,
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--brand-forest)',
+                  color: '#ffffff',
+                  boxShadow: '0 2px 6px rgba(24, 88, 68, 0.2)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                Download File
+              </Button>
+
               {onCloseFile && (
-                <Tooltip label="Close file preview (Esc)" withArrow position="bottom-end">
+                <Tooltip
+                  label={
+                    document?.collectionName && document.collectionName !== 'Unassigned'
+                      ? `Back to "${document.collectionName}" folder (Esc)`
+                      : 'Close file preview (Esc)'
+                  }
+                  withArrow
+                  position="bottom-end"
+                >
                   <Button
                     size="xs"
                     variant="subtle"
                     color="gray"
-                    leftSection={<X size={14} />}
+                    leftSection={
+                      document?.collectionName && document.collectionName !== 'Unassigned' ? (
+                        <ArrowLeft size={14} />
+                      ) : (
+                        <X size={14} />
+                      )
+                    }
                     onClick={onCloseFile}
                     style={{
+                      height: 32,
+                      borderRadius: '8px',
                       border: '1px solid var(--border-subtle)',
                       backgroundColor: 'var(--surface-card)',
-                      color: 'var(--text-secondary)',
+                      color: 'var(--text-primary)',
                       fontWeight: 600,
+                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    Close (Esc)
+                    {document?.collectionName && document.collectionName !== 'Unassigned'
+                      ? 'Back to Folder (Esc)'
+                      : 'Close (Esc)'}
                   </Button>
                 </Tooltip>
               )}

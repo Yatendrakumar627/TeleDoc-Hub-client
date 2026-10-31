@@ -69,12 +69,14 @@ function VaultWorkspace() {
   const {
     isProcessing,
     uploadProgress,
+    uploadStatusText,
     error: uploadError,
     clearError,
     uploadFile,
     ingestLink,
   } = useUpload((newDoc, newContent) => {
     addDocument(newDoc, newContent);
+    refreshDocuments();
     loadGroups();
   });
 
@@ -108,12 +110,35 @@ function VaultWorkspace() {
     setIsViewingGroupHub(false);
   };
 
-  // Handle closing active file preview (returns to empty state / collection)
+  // Handle closing active file preview (returns to folder/collection view where files are available)
   const handleCloseDoc = () => {
+    if (currentDoc?.collectionId && currentDoc.collectionId !== 'unassigned') {
+      setSelectedCollection((prev) => {
+        if (prev && prev.id === currentDoc.collectionId) {
+          return prev;
+        }
+        return {
+          id: currentDoc.collectionId,
+          name: currentDoc.collectionName,
+          scope: currentDoc.scope,
+        };
+      });
+      setIsViewingCollectionHub(true);
+      setIsViewingGroupHub(false);
+    } else if (selectedCollection) {
+      setIsViewingCollectionHub(true);
+      setIsViewingGroupHub(false);
+    } else if (currentDoc?.groupId || selectedGroupId) {
+      setIsViewingGroupHub(true);
+      setIsViewingCollectionHub(false);
+    } else {
+      setIsViewingCollectionHub(false);
+      setIsViewingGroupHub(false);
+    }
     closeDocument();
   };
 
-  // Keyboard shortcut: Press Escape (Esc) on PC to close active document
+  // Keyboard shortcut: Press Escape (Esc) on PC to close active document & return to folder view
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -134,7 +159,7 @@ function VaultWorkspace() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedDocId, uploadModalOpen]);
+  }, [selectedDocId, uploadModalOpen, currentDoc, selectedCollection, selectedGroupId]);
 
   // Switch to collection overview hub
   const handleOpenCollectionHub = () => {
@@ -432,8 +457,10 @@ function VaultWorkspace() {
         onIngestGoogleLink={ingestLink}
         isProcessing={isProcessing}
         uploadProgress={uploadProgress}
+        uploadStatusText={uploadStatusText}
         error={uploadError}
         onClearError={clearError}
+        onRefreshVault={refreshDocuments}
         onSuccessNavigate={(docs, content, col) => {
           const docList = Array.isArray(docs) ? docs : [docs];
           addDocument(docs, content);

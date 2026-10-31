@@ -406,3 +406,57 @@ body {
 .filecard-accent-spreadsheet { border-left: 3px solid #059669 !important; }
 .filecard-accent-code { border-left: 3px solid #334155 !important; }
 .filecard-accent-default { border-left: 3px solid #78947F !important; }
+
+/* -------------------------------------------------------------------------
+   12. Mantine Select & Combobox Dropdown Fixes (Prevent Text Crushing/Wrapping)
+   ------------------------------------------------------------------------- */
+.mantine-Combobox-dropdown,
+.mantine-Select-dropdown,
+[data-combobox-dropdown] {
+  min-width: 175px !important;
+  width: max-content !important;
+  max-width: 320px !important;
+  background-color: #ffffff !important;
+  border: 1px solid var(--border-subtle) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 10px 25px -4px rgba(16, 47, 39, 0.16), 0 4px 10px -2px rgba(16, 47, 39, 0.08) !important;
+  padding: 5px !important;
+  z-index: 1000 !important;
+}
+
+.mantine-Combobox-option,
+.mantine-Select-option,
+[data-combobox-option] {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  word-wrap: normal !important;
+  font-size: 12px !important;
+  padding: 6px 12px !important;
+  border-radius: 6px !important;
+  color: var(--text-primary) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.mantine-Combobox-option:hover,
+.mantine-Select-option:hover,
+.mantine-Combobox-option[data-combobox-selected],
+.mantine-Select-option[data-combobox-selected] {
+  background-color: var(--surface-selected) !important;
+  color: var(--brand-primary) !important;
+}
+
+/* -------------------------------------------------------------------------
+   13. Mobile Responsive Sidebar Ratio & Backdrop Peek
+   ------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .mantine-AppShell-navbar,
+  [data-app-shell-navbar] {
+    width: min(315px, 80vw) !important;
+    max-width: 82vw !important;
+    box-shadow: 10px 0 32px rgba(16, 47, 39, 0.35) !important;
+    z-index: 100 !important;
+  }
+}
+

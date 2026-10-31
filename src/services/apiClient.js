@@ -100,11 +100,14 @@ export const uploadDocument = async (fileOrFiles, onProgress = null, options = {
   if (options.collectionId) formData.append('collectionId', options.collectionId);
   if (options.collectionName) formData.append('collectionName', options.collectionName);
 
+  // Dynamic timeout: scales with file count so large batches have ample processing headroom
+  const dynamicTimeout = Math.max(UPLOAD_TIMEOUT, fileList.length * 60000);
+
   const res = await apiClient.post('/documents/upload', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
-    timeout: UPLOAD_TIMEOUT, // configurable timeout for large media/video uploads
+    timeout: dynamicTimeout,
     onUploadProgress: (progressEvent) => {
       if (onProgress && progressEvent.total) {
         const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -125,6 +128,11 @@ export const ingestGoogleLink = async (url, title = '', options = {}) => {
 
 export const deleteDocument = async (id) => {
   const res = await apiClient.delete(`/documents/${id}`);
+  return res.data;
+};
+
+export const reorderDocuments = async (orderedIds) => {
+  const res = await apiClient.put('/documents/reorder', { orderedIds });
   return res.data;
 };
 

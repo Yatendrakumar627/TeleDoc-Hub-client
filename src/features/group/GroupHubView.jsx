@@ -386,6 +386,7 @@ export default function GroupHubView({
                   document={doc}
                   doc={doc}
                   isSelected={false}
+                  hideGroupBadge={true}
                   onSelect={onSelectFile}
                   onDelete={onDeleteFile}
                 />

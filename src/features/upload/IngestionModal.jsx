@@ -41,9 +41,11 @@ export default function IngestionModal({
   onIngestGoogleLink,
   isProcessing,
   uploadProgress,
+  uploadStatusText = '',
   error,
   onClearError,
   onSuccessNavigate,
+  onRefreshVault,
 }) {
   const [step, setStep] = useState('upload'); // 'upload' | 'collection'
   const [activeTab, setActiveTab] = useState('upload');
@@ -252,6 +254,24 @@ export default function IngestionModal({
 
           <FeedbackBanner type="error" message={error} onClose={onClearError} />
 
+          {error && (
+            <Group justify="flex-end" mb="xs">
+              <Button
+                size="xs"
+                variant="light"
+                color="emerald"
+                onClick={async () => {
+                  if (onRefreshVault) onRefreshVault();
+                  await loadCollections();
+                  if (onClearError) onClearError();
+                  onClose();
+                }}
+              >
+                🔄 Refresh Vault & Close
+              </Button>
+            </Group>
+          )}
+
           {/* Tab 1: Local File Upload */}
           <Tabs.Panel value="upload">
             <UploadDropzone
@@ -266,6 +286,7 @@ export default function IngestionModal({
               }}
               loading={isProcessing}
               uploadProgress={uploadProgress}
+              statusText={uploadStatusText}
             />
           </Tabs.Panel>
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Paper, Group, Text, Button, ActionIcon, Tooltip, ScrollArea, Box, Badge } from '@mantine/core';
-import { ChevronLeft, ChevronRight, Folder, Grid, FileText, X } from 'lucide-react';
+import { useMediaQuery } from '@mantine/hooks';
+import { ChevronLeft, ChevronRight, Folder, Grid, FileText, X, ArrowLeft } from 'lucide-react';
 import { getDocTypeMeta } from '../../utils/docTypes';
 
 export default function CollectionNavBar({
@@ -11,6 +12,8 @@ export default function CollectionNavBar({
   onOpenCollectionHub,
   onCloseFile,
 }) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
+
   if (!collectionName || collectionName === 'Unassigned' || files.length <= 1) {
     return null;
   }
@@ -21,10 +24,11 @@ export default function CollectionNavBar({
 
   return (
     <Paper
-      p="xs"
+      p={isMobile ? 4 : 'xs'}
+      px={isMobile ? 8 : 'xs'}
       radius="md"
       withBorder
-      mb="md"
+      mb={isMobile ? 'xs' : 'md'}
       style={{
         backgroundColor: '#ffffff',
         borderColor: '#e2e8f0',
@@ -37,10 +41,16 @@ export default function CollectionNavBar({
           <Tooltip label="View all files in this collection" withArrow>
             <Button
               variant="light"
-              color="blue"
               size="xs"
               leftSection={<Grid size={13} />}
               onClick={onOpenCollectionHub}
+              style={{
+                backgroundColor: 'rgba(24, 88, 68, 0.08)',
+                color: 'var(--brand-forest)',
+                fontWeight: 600,
+                borderRadius: '8px',
+                border: '1px solid rgba(24, 88, 68, 0.15)',
+              }}
             >
               {collectionName}
             </Button>
@@ -64,12 +74,13 @@ export default function CollectionNavBar({
                   <Button
                     size="compact-xs"
                     variant={isActive ? 'filled' : 'subtle'}
-                    color={isActive ? 'blue' : 'gray'}
+                    color={isActive ? 'teal' : 'gray'}
                     radius="xl"
                     leftSection={<Icon size={12} />}
                     onClick={() => onSelectFile(file.id)}
                     style={{
                       fontWeight: isActive ? 600 : 400,
+                      backgroundColor: isActive ? 'var(--brand-forest)' : undefined,
                       maxWidth: 160,
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
@@ -109,7 +120,7 @@ export default function CollectionNavBar({
           </Tooltip>
 
           {onCloseFile && (
-            <Tooltip label="Close File (Esc)" withArrow position="bottom-end">
+            <Tooltip label="Back to Folder (Esc)" withArrow position="bottom-end">
               <ActionIcon
                 size="sm"
                 variant="subtle"
@@ -119,9 +130,11 @@ export default function CollectionNavBar({
                   marginLeft: 4,
                   border: '1px solid var(--border-subtle)',
                   backgroundColor: 'var(--surface-card)',
+                  borderRadius: '6px',
+                  color: 'var(--text-secondary)',
                 }}
               >
-                <X size={14} color="var(--text-secondary)" />
+                <ArrowLeft size={14} />
               </ActionIcon>
             </Tooltip>
           )}

@@ -13,6 +13,7 @@ import {
   Button,
   Select,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   BookOpen,
   Clock,
@@ -28,6 +29,7 @@ import {
   Copy,
   Check,
   X,
+  ArrowLeft,
 } from 'lucide-react';
 import SourceBadge from '../../components/ui/SourceBadge';
 import TypographyToolbar from '../../components/ui/TypographyToolbar';
@@ -37,6 +39,7 @@ import { formatReadingTime, formatBytes } from '../../utils/formatters';
 import { API_BASE_URL } from '../../config';
 
 export default function DocReader({ document, content, onRenameFile, onCloseFile }) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [fontSize, setFontSize] = useState('md');
   const [zoomScale, setZoomScale] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -83,7 +86,7 @@ export default function DocReader({ document, content, onRenameFile, onCloseFile
 
   return (
     <Box
-      p={isFullscreen ? 'xs' : 'lg'}
+      p={isMobile ? 6 : isFullscreen ? 'xs' : 'lg'}
       style={{
         maxWidth: isFullscreen ? '100%' : isDocx ? 1000 : 880,
         margin: '0 auto',
@@ -93,150 +96,275 @@ export default function DocReader({ document, content, onRenameFile, onCloseFile
     >
       {/* Top Header Card */}
       <Paper
-        p="md"
+        p={isMobile ? 'xs' : 'md'}
         radius="md"
-        mb="lg"
+        mb={isMobile ? 'xs' : 'lg'}
         className="premium-header-card"
         style={{ border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}
       >
-        <Stack gap="xs">
-          <Group justify="space-between" align="flex-start" wrap="wrap">
-            <Box style={{ flex: 1, minWidth: 260 }}>
-              <Group gap="xs" mb={4} wrap="wrap">
-                <SourceBadge type={document?.type} format={document?.format} />
-
-                {document?.collectionName && document?.collectionName !== 'Unassigned' && (
-                  <Badge color="emerald" variant="filled" size="xs">
-                    📁 {document.collectionName}
-                  </Badge>
-                )}
-
-                {document?.scope && (
-                  <Badge
-                    color={document.scope === 'personal' ? 'sage' : 'emerald'}
-                    variant="light"
-                    size="xs"
-                  >
-                    {document.scope === 'personal' ? 'Personal' : 'Work'}
-                  </Badge>
-                )}
-
-                {document?.security?.isEncrypted && (
-                  <Badge color="teal" variant="light" size="xs" leftSection={<Lock size={10} />} className="badge-emerald">
-                    AES-256 Encrypted
-                  </Badge>
-                )}
-
-                {document?.originalUrl && (
-                  <Tooltip label="Open original Google Workspace link" withArrow>
-                    <ActionIcon
-                      component="a"
-                      href={document.originalUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      size="xs"
-                      variant="subtle"
-                      color="blue"
-                    >
-                      <ExternalLink size={14} />
-                    </ActionIcon>
-                  </Tooltip>
+        <Stack gap={isMobile ? 6 : 'xs'}>
+          {isMobile ? (
+            /* Compact Mobile Header */
+            <Stack gap={6}>
+              <Group justify="space-between" align="center" wrap="nowrap">
+                <Group gap={6} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                  <SourceBadge type={document?.type} format={document?.format} />
+                  <Box style={{ flex: 1, minWidth: 0 }}>
+                    <EditableDocumentTitle document={document} onRename={onRenameFile} order={4} />
+                  </Box>
+                </Group>
+                {onCloseFile && (
+                  <ActionIcon variant="subtle" color="gray" size="sm" onClick={onCloseFile}>
+                    <X size={16} />
+                  </ActionIcon>
                 )}
               </Group>
 
-              <EditableDocumentTitle document={document} onRename={onRenameFile} order={2} />
-              <Text size="xs" c="dimmed" mt={2}>
-                Original file: {document?.filename} • {formatBytes(document?.fileSize || 0)}
-              </Text>
-            </Box>
-
-            <Group gap="xs" wrap="wrap">
-              {isDocx && (
-                <Group gap={4}>
-                  <Tooltip label="Zoom Out" withArrow>
-                    <ActionIcon
-                      variant="default"
-                      size="sm"
-                      onClick={() => setZoomScale((z) => Math.max(0.75, z - 0.1))}
-                    >
-                      <ZoomOut size={14} />
-                    </ActionIcon>
-                  </Tooltip>
-                  <Badge variant="light" color="gray" size="xs">
-                    {Math.round(zoomScale * 100)}%
-                  </Badge>
-                  <Tooltip label="Zoom In" withArrow>
-                    <ActionIcon
-                      variant="default"
-                      size="sm"
-                      onClick={() => setZoomScale((z) => Math.min(1.5, z + 0.1))}
-                    >
-                      <ZoomIn size={14} />
-                    </ActionIcon>
-                  </Tooltip>
+              <Group justify="space-between" align="center" wrap="nowrap">
+                <Group gap={4} wrap="nowrap">
+                  {html && (
+                    <>
+                      <Button
+                        size="compact-xs"
+                        variant={viewMode === 'formatted' ? 'filled' : 'subtle'}
+                        color="blue"
+                        onClick={() => setViewMode('formatted')}
+                        style={{ fontSize: '11px', height: '26px' }}
+                      >
+                        Word
+                      </Button>
+                      <Button
+                        size="compact-xs"
+                        variant={viewMode === 'text' ? 'filled' : 'subtle'}
+                        color="gray"
+                        onClick={() => setViewMode('text')}
+                        style={{ fontSize: '11px', height: '26px' }}
+                      >
+                        Text
+                      </Button>
+                    </>
+                  )}
                 </Group>
-              )}
 
-              <Tooltip label={isFullscreen ? 'Exit Fullscreen' : 'View Fullscreen'} withArrow>
-                <ActionIcon
-                  size="md"
-                  variant="default"
-                  onClick={() => setIsFullscreen(!isFullscreen)}
-                >
-                  {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-                </ActionIcon>
-              </Tooltip>
+                <Group gap={6} wrap="nowrap">
+                  <ActionIcon
+                    component="a"
+                    href={downloadUrl}
+                    download={document?.filename}
+                    variant="light"
+                    color="blue"
+                    size="sm"
+                    title="Download"
+                  >
+                    <Download size={13} />
+                  </ActionIcon>
+                  <Badge variant="outline" color="teal" size="xs">
+                    Synced
+                  </Badge>
+                </Group>
+              </Group>
+            </Stack>
+          ) : (
+            /* Desktop Full Header */
+            <Group justify="space-between" align="flex-start" wrap="wrap">
+              <Box style={{ flex: 1, minWidth: 260 }}>
+                <Group gap="xs" mb={4} wrap="wrap">
+                  <SourceBadge type={document?.type} format={document?.format} />
 
-              <Button
-                component="a"
-                href={downloadUrl}
-                download={document?.filename}
-                size="xs"
-                variant="light"
-                color="blue"
-                leftSection={<Download size={13} />}
-              >
-                Download File
-              </Button>
+                  {document?.collectionName && document?.collectionName !== 'Unassigned' && (
+                    <Badge color="emerald" variant="filled" size="xs">
+                      📁 {document.collectionName}
+                    </Badge>
+                  )}
 
-              <Tooltip
-                label={`Telegram file_id: ${document?.telegramFileId || 'N/A'}`}
-                withArrow
-                position="bottom-end"
-              >
-                <Badge
-                  variant="outline"
-                  color="teal"
-                  size="sm"
-                  leftSection={<ShieldCheck size={12} />}
-                  className="mono-badge"
-                >
-                  Vault Synced
-                </Badge>
-              </Tooltip>
+                  {document?.scope && (
+                    <Badge
+                      color={document.scope === 'personal' ? 'sage' : 'emerald'}
+                      variant="light"
+                      size="xs"
+                    >
+                      {document.scope === 'personal' ? 'Personal' : 'Work'}
+                    </Badge>
+                  )}
 
-              {onCloseFile && (
-                <Tooltip label="Close file preview (Esc)" withArrow position="bottom-end">
-                  <Button
-                    size="xs"
+                  {document?.security?.isEncrypted && (
+                    <Badge color="teal" variant="light" size="xs" leftSection={<Lock size={10} />} className="badge-emerald">
+                      AES-256 Encrypted
+                    </Badge>
+                  )}
+
+                  {document?.originalUrl && (
+                    <Tooltip label="Open original Google Workspace link" withArrow>
+                      <ActionIcon
+                        component="a"
+                        href={document.originalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        size="xs"
+                        variant="subtle"
+                        color="blue"
+                      >
+                        <ExternalLink size={14} />
+                      </ActionIcon>
+                    </Tooltip>
+                  )}
+                </Group>
+
+                <EditableDocumentTitle document={document} onRename={onRenameFile} order={2} />
+                <Text size="xs" c="dimmed" mt={2}>
+                  Original file: {document?.filename} • {formatBytes(document?.fileSize || 0)}
+                </Text>
+              </Box>
+
+              <Group gap="xs" wrap="wrap">
+                {isDocx && (
+                  <Group
+                    gap={2}
+                    p={2}
+                    style={{
+                      backgroundColor: 'var(--surface-sunken)',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-subtle)',
+                      height: 32,
+                    }}
+                  >
+                    <Tooltip label="Zoom Out" withArrow>
+                      <ActionIcon
+                        variant="subtle"
+                        size="xs"
+                        color="gray"
+                        style={{ height: 26, width: 26, borderRadius: '6px', color: 'var(--text-secondary)' }}
+                        onClick={() => setZoomScale((z) => Math.max(0.75, z - 0.1))}
+                      >
+                        <ZoomOut size={13} />
+                      </ActionIcon>
+                    </Tooltip>
+                    <Text size="xs" fw={600} px={6} style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
+                      {Math.round(zoomScale * 100)}%
+                    </Text>
+                    <Tooltip label="Zoom In" withArrow>
+                      <ActionIcon
+                        variant="subtle"
+                        size="xs"
+                        color="gray"
+                        style={{ height: 26, width: 26, borderRadius: '6px', color: 'var(--text-secondary)' }}
+                        onClick={() => setZoomScale((z) => Math.min(1.5, z + 0.1))}
+                      >
+                        <ZoomIn size={13} />
+                      </ActionIcon>
+                    </Tooltip>
+                  </Group>
+                )}
+
+                {/* Utility Actions */}
+                <Tooltip label={isFullscreen ? 'Exit Fullscreen' : 'View Fullscreen'} withArrow>
+                  <ActionIcon
+                    size="sm"
                     variant="subtle"
                     color="gray"
-                    leftSection={<X size={14} />}
-                    onClick={onCloseFile}
+                    onClick={() => setIsFullscreen(!isFullscreen)}
                     style={{
+                      height: 32,
+                      width: 32,
+                      borderRadius: '8px',
                       border: '1px solid var(--border-subtle)',
                       backgroundColor: 'var(--surface-card)',
                       color: 'var(--text-secondary)',
+                    }}
+                  >
+                    {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                  </ActionIcon>
+                </Tooltip>
+
+                {/* Primary CTAs & Status */}
+                <Group gap="xs" align="center" wrap="nowrap">
+                  <Tooltip
+                    label={`Telegram file_id: ${document?.telegramFileId || 'N/A'}`}
+                    withArrow
+                    position="bottom-end"
+                  >
+                    <Badge
+                      variant="light"
+                      color="teal"
+                      size="sm"
+                      leftSection={<ShieldCheck size={12} />}
+                      style={{
+                        height: 32,
+                        fontWeight: 600,
+                        textTransform: 'none',
+                        borderRadius: '8px',
+                        backgroundColor: 'rgba(24, 88, 68, 0.08)',
+                        color: 'var(--brand-forest)',
+                        border: '1px solid rgba(24, 88, 68, 0.2)',
+                      }}
+                    >
+                      Vault Synced
+                    </Badge>
+                  </Tooltip>
+
+                  <Button
+                    component="a"
+                    href={downloadUrl}
+                    download={document?.filename}
+                    size="xs"
+                    variant="filled"
+                    leftSection={<Download size={13} />}
+                    style={{
+                      height: 32,
                       fontWeight: 600,
+                      borderRadius: '8px',
+                      backgroundColor: 'var(--brand-forest)',
+                      color: '#ffffff',
+                      boxShadow: '0 2px 6px rgba(24, 88, 68, 0.2)',
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    Close (Esc)
+                    Download File
                   </Button>
-                </Tooltip>
-              )}
+
+                  {onCloseFile && (
+                    <Tooltip
+                      label={
+                        document?.collectionName && document.collectionName !== 'Unassigned'
+                          ? `Back to "${document.collectionName}" folder (Esc)`
+                          : 'Close file preview (Esc)'
+                      }
+                      withArrow
+                      position="bottom-end"
+                    >
+                      <Button
+                        size="xs"
+                        variant="subtle"
+                        color="gray"
+                        leftSection={
+                          document?.collectionName && document.collectionName !== 'Unassigned' ? (
+                            <ArrowLeft size={14} />
+                          ) : (
+                            <X size={14} />
+                          )
+                        }
+                        onClick={onCloseFile}
+                        style={{
+                          height: 32,
+                          borderRadius: '8px',
+                          border: '1px solid var(--border-subtle)',
+                          backgroundColor: 'var(--surface-card)',
+                          color: 'var(--text-primary)',
+                          fontWeight: 600,
+                          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {document?.collectionName && document.collectionName !== 'Unassigned'
+                          ? 'Back to Folder (Esc)'
+                          : 'Close (Esc)'}
+                      </Button>
+                    </Tooltip>
+                  )}
+                </Group>
+              </Group>
             </Group>
-          </Group>
+          )}
 
           <Divider my={4} />
 
@@ -307,7 +435,7 @@ export default function DocReader({ document, content, onRenameFile, onCloseFile
 
       {/* Document View Canvas */}
       <Paper
-        p={isDocx && viewMode === 'formatted' ? 'xl' : 'xl'}
+        p={isMobile ? 'md' : 'xl'}
         radius="md"
         withBorder
         style={{
