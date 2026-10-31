@@ -1,0 +1,408 @@
+/* ==========================================================================
+   TeleDoc Hub - Master Design System & Luxury Heritage Color Palette (theme.css)
+   ==========================================================================
+   PALETTE SPECIFICATION (Bespoke Luxury Vault Branding):
+   - #F2EBDD  IVORY        (Warm Pearlescent Canvas, Soft Sheen, Refined Backgrounds)
+   - #78947F  SAGE         (Calming Eucalyptus Tone, Sub-Accents, Muted Chips)
+   - #185844  EMERALD      (Primary Brand Identity, Key CTAs, Vault Integrity)
+   - #102F27  FOREST       (Midnight Obsidian Forest, Deep High-Contrast Typography)
+   - #B08A4F  ANTIQUE GOLD (Prestige Metallic Accent, Encryption Keys, Jewel Badges)
+   ========================================================================== */
+
+:root {
+  /* -------------------------------------------------------------------------
+     1. Brand Primary & Accent Spectrum
+     ------------------------------------------------------------------------- */
+  --brand-primary: #185844;            /* Royal Emerald (Primary Brand Action) */
+  --brand-primary-hover: #134737;      /* Deep Forest Emerald Hover */
+  --brand-primary-active: #0e3529;     /* Deep Pressed Tone */
+  --brand-primary-light: #edf4f0;      /* Soft Emerald Ice Tint */
+  --brand-primary-border: #b6d3c0;     /* Hairline Emerald Border */
+
+  --brand-forest: #102F27;             /* Midnight Forest Obsidian */
+  --brand-forest-hover: #0a1f1a;
+  
+  --brand-gold: #B08A4F;               /* Antique Gold (Luxury Metallic Accent) */
+  --brand-gold-hover: #9c773e;         /* Burnished Brass */
+  --brand-gold-active: #826233;
+  --brand-gold-light: #fbf7ef;         /* Soft Gold Whispers */
+  --brand-gold-border: #eedebd;        /* Hairline Gold Foil Border */
+
+  --brand-sage: #78947F;               /* Sage / Eucalyptus Sub-Accent */
+  --brand-sage-light: #f2f6f3;
+  --brand-sage-border: #c8dcd0;
+
+  --brand-ivory: #F2EBDD;              /* True Warm Ivory */
+  --brand-ivory-light: #faf7f2;
+  --brand-ivory-border: #e5dfd5;
+
+  /* Royal Vault Gradients */
+  --brand-gradient: linear-gradient(135deg, #185844 0%, #102F27 55%, #B08A4F 100%);
+  --brand-gradient-subtle: linear-gradient(135deg, #edf4f0 0%, #FAF7F2 100%);
+  --brand-gold-gradient: linear-gradient(135deg, #B08A4F 0%, #c8a362 50%, #9c773e 100%);
+
+  /* Diffuse Radiance Glows */
+  --brand-glow: 0 4px 14px 0 rgba(24, 88, 68, 0.28);
+  --brand-glow-lg: 0 10px 25px -3px rgba(24, 88, 68, 0.35);
+  --brand-gold-glow: 0 4px 14px 0 rgba(176, 138, 79, 0.32);
+
+  /* -------------------------------------------------------------------------
+     2. Surface & Canvas Tokens (Warm Ivory & Studio White)
+     ------------------------------------------------------------------------- */
+  --surface-app: #f9f7f2;              /* Warm Pearlescent Ivory Studio Canvas */
+  --surface-card: #ffffff;             /* Crisp Pure White Card */
+  --surface-card-warm: #faf7f2;        /* Warm Ivory Soft Card */
+  --surface-card-subtle: #f5f2ec;      /* Sub-Surface Micro Tone */
+  --surface-sidebar: #ffffff;          /* Elevated Navigation Sidebar */
+  --surface-topbar: rgba(255, 255, 255, 0.94); /* Frosted Topbar with Ivory Sheen */
+  --surface-hover: #f1eee7;            /* Soft Organic Hover */
+  --surface-active: #e7e2d7;           /* Active / Selected Fill */
+  --surface-selected: #edf4f0;         /* Selected Emerald Tint */
+  --surface-glass: rgba(255, 255, 255, 0.88);
+
+  /* -------------------------------------------------------------------------
+     3. Hairline Borders & Dividers
+     ------------------------------------------------------------------------- */
+  --border-subtle: #e5dfd5;            /* Clean Warm Micro-border */
+  --border-card: #ded8cb;              /* Separation Border */
+  --border-active: #185844;            /* Active Selected Border */
+  --border-gold: #d8c29a;              /* Gold Foil Accent Border */
+  --border-focus: rgba(24, 88, 68, 0.38);
+
+  /* -------------------------------------------------------------------------
+     4. Typography & High-Contrast Slates
+     ------------------------------------------------------------------------- */
+  --text-primary: #102F27;             /* Deep Midnight Forest Charcoal */
+  --text-secondary: #2d433b;           /* Rich Forest Slate */
+  --text-muted: #63776e;               /* Soft Sage Slate Muted */
+  --text-dimmed: #8d9e96;              /* Subtle Hint Text */
+  --text-gold: #8f6c34;                /* Deep Antique Gold Text */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-reader: 'Merriweather', Georgia, serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* -------------------------------------------------------------------------
+     5. Multi-Layered Diffuse Shadows & Elevation
+     ------------------------------------------------------------------------- */
+  --shadow-sm: 0 1px 2px 0 rgba(16, 47, 39, 0.05);
+  --shadow-card: 0 1px 3px 0 rgba(16, 47, 39, 0.04), 0 4px 16px -2px rgba(16, 47, 39, 0.06);
+  --shadow-card-hover: 0 8px 24px -4px rgba(16, 47, 39, 0.09), 0 2px 6px -1px rgba(16, 47, 39, 0.04);
+  --shadow-dropdown: 0 12px 32px -4px rgba(16, 47, 39, 0.12), 0 4px 12px -2px rgba(16, 47, 39, 0.06);
+
+  /* -------------------------------------------------------------------------
+     6. Status & Jewel Accent Tones
+     ------------------------------------------------------------------------- */
+  --jewel-emerald: #185844;
+  --jewel-emerald-bg: #edf4f0;
+  --jewel-emerald-border: #b6d3c0;
+
+  --jewel-gold: #B08A4F;
+  --jewel-gold-bg: #fbf7ef;
+  --jewel-gold-border: #eedebd;
+
+  --jewel-sage: #78947F;
+  --jewel-sage-bg: #f2f6f3;
+  --jewel-sage-border: #c8dcd0;
+
+  --jewel-forest: #102F27;
+  --jewel-forest-bg: #102F27;
+  --jewel-forest-border: #102F27;
+
+  --jewel-ruby: #e11d48;
+  --jewel-ruby-bg: #fff1f2;
+  --jewel-ruby-border: #fecdd3;
+
+  --jewel-amber: #d97706;
+  --jewel-amber-bg: #fffbeb;
+  --jewel-amber-border: #fde68a;
+
+  --jewel-sapphire: #2563eb;
+  --jewel-sapphire-bg: #eff6ff;
+  --jewel-sapphire-border: #bfdbfe;
+}
+
+/* Base Body Styling */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--surface-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* -------------------------------------------------------------------------
+   7. Reusable Premium UI Component Classes
+   ------------------------------------------------------------------------- */
+
+/* Premium Card Shell */
+.premium-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.premium-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: #cbd5e1;
+}
+
+/* Premium Top Header Card in Viewers */
+.premium-header-card {
+  background: linear-gradient(180deg, #ffffff 0%, #FAF7F2 100%);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s ease;
+}
+
+/* Jewel Badges */
+.badge-emerald {
+  background-color: var(--jewel-emerald-bg) !important;
+  color: var(--jewel-emerald) !important;
+  border: 1px solid var(--jewel-emerald-border) !important;
+  font-weight: 600 !important;
+}
+
+.badge-gold {
+  background-color: var(--jewel-gold-bg) !important;
+  color: var(--text-gold) !important;
+  border: 1px solid var(--jewel-gold-border) !important;
+  font-weight: 600 !important;
+}
+
+.badge-sage {
+  background-color: var(--jewel-sage-bg) !important;
+  color: var(--brand-sage) !important;
+  border: 1px solid var(--jewel-sage-border) !important;
+  font-weight: 600 !important;
+}
+
+.badge-forest {
+  background-color: var(--brand-forest) !important;
+  color: var(--brand-ivory) !important;
+  border: 1px solid var(--brand-forest) !important;
+  font-weight: 600 !important;
+}
+
+.badge-amber {
+  background-color: var(--jewel-amber-bg) !important;
+  color: var(--jewel-amber) !important;
+  border: 1px solid var(--jewel-amber-border) !important;
+  font-weight: 600 !important;
+}
+
+.badge-ruby {
+  background-color: var(--jewel-ruby-bg) !important;
+  color: var(--jewel-ruby) !important;
+  border: 1px solid var(--jewel-ruby-border) !important;
+  font-weight: 600 !important;
+}
+
+/* Monospace Pill */
+.mono-badge {
+  font-family: var(--font-mono);
+  font-size: 0.775rem;
+}
+
+/* Custom Executive Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d8d2c4;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #b5ad9e;
+}
+
+/* Interactive Button Elevations */
+.btn-premium-primary {
+  background: var(--brand-primary) !important;
+  color: #ffffff !important;
+  box-shadow: var(--brand-glow) !important;
+  transition: all 0.15s ease-in-out !important;
+  font-weight: 600 !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+.btn-premium-primary:hover {
+  background: var(--brand-primary-hover) !important;
+  box-shadow: var(--brand-glow-lg) !important;
+  transform: translateY(-1px);
+}
+
+.btn-premium-primary:active {
+  background: var(--brand-primary-active) !important;
+  transform: translateY(0);
+}
+
+/* Antique Gold Metallic Button */
+.btn-premium-gold {
+  background: var(--brand-gold-gradient) !important;
+  color: #ffffff !important;
+  box-shadow: var(--brand-gold-glow) !important;
+  transition: all 0.15s ease-in-out !important;
+  font-weight: 600 !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+.btn-premium-gold:hover {
+  background: linear-gradient(135deg, #c49f57 0%, #d5b672 50%, #B08A4F 100%) !important;
+  box-shadow: 0 6px 18px 0 rgba(176, 138, 79, 0.42) !important;
+  transform: translateY(-1px);
+}
+
+/* Brand Sparkle Logo Box */
+.brand-sparkle-box {
+  background: var(--brand-gradient);
+  box-shadow: var(--brand-glow);
+  border: 1px solid rgba(176, 138, 79, 0.4);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+}
+
+/* Premium Sidebar Group Folder Item */
+.group-folder-card {
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+  overflow: hidden;
+  transition: all 0.18s ease-in-out;
+}
+
+.group-folder-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: var(--shadow-sm);
+}
+
+.group-folder-card.selected {
+  border-color: var(--brand-primary);
+  background: var(--surface-selected);
+  box-shadow: 0 2px 8px rgba(24, 88, 68, 0.14);
+}
+
+
+/* -------------------------------------------------------------------------
+   8. Segmented Controls - Luxury Emerald & Gold Styling
+   ------------------------------------------------------------------------- */
+.mantine-SegmentedControl-root {
+  background-color: #f1eee7 !important;
+  border: 1px solid var(--border-subtle) !important;
+  padding: 3px !important;
+  border-radius: 8px !important;
+}
+
+.mantine-SegmentedControl-indicator {
+  background: linear-gradient(135deg, #185844 0%, #102F27 100%) !important;
+  box-shadow: 0 2px 6px rgba(16, 47, 39, 0.28) !important;
+  border-radius: 6px !important;
+  border: 1px solid rgba(176, 138, 79, 0.3) !important;
+}
+
+.mantine-SegmentedControl-label[data-active] {
+  color: #F2EBDD !important;
+  font-weight: 600 !important;
+}
+
+.mantine-SegmentedControl-label:not([data-active]) {
+  color: var(--text-secondary) !important;
+  font-weight: 500 !important;
+}
+
+.mantine-SegmentedControl-label:hover {
+  color: var(--brand-primary) !important;
+}
+
+/* -------------------------------------------------------------------------
+   9. Luxury Hero Canvas & Ambient Glow
+   ------------------------------------------------------------------------- */
+.luxury-hero-canvas {
+  position: relative;
+  background: radial-gradient(circle at 50% 18%, rgba(176, 138, 79, 0.14) 0%, rgba(24, 88, 68, 0.08) 35%, transparent 72%);
+}
+
+.luxury-gradient-text {
+  background: linear-gradient(135deg, #102F27 0%, #185844 55%, #B08A4F 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.02em;
+}
+
+/* -------------------------------------------------------------------------
+   10. Multi-Colored Luxury Capability Cards
+   ------------------------------------------------------------------------- */
+.capability-card-emerald {
+  background: linear-gradient(180deg, #ffffff 0%, #FAF7F2 100%) !important;
+  border: 1px solid #b6d3c0 !important;
+  border-top: 3.5px solid #185844 !important;
+  box-shadow: 0 2px 10px rgba(24, 88, 68, 0.08) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.capability-card-emerald:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(24, 88, 68, 0.16) !important;
+}
+
+.capability-card-gold {
+  background: linear-gradient(180deg, #ffffff 0%, #FAF7F2 100%) !important;
+  border: 1px solid #eedebd !important;
+  border-top: 3.5px solid #B08A4F !important;
+  box-shadow: 0 2px 10px rgba(176, 138, 79, 0.1) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.capability-card-gold:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(176, 138, 79, 0.2) !important;
+}
+
+.capability-card-amethyst {
+  background: linear-gradient(180deg, #ffffff 0%, #FAF7F2 100%) !important;
+  border: 1px solid #ddd6fe !important;
+  border-top: 3.5px solid #7c3aed !important;
+  box-shadow: 0 2px 10px rgba(124, 58, 237, 0.08) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.capability-card-amethyst:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.16) !important;
+}
+
+.capability-card-sapphire {
+  background: linear-gradient(180deg, #ffffff 0%, #FAF7F2 100%) !important;
+  border: 1px solid #bfdbfe !important;
+  border-top: 3.5px solid #2563eb !important;
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.08) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.capability-card-sapphire:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.16) !important;
+}
+
+/* -------------------------------------------------------------------------
+   11. Format-Specific Color Stripes for File Cards
+   ------------------------------------------------------------------------- */
+.filecard-accent-docx { border-left: 3px solid #185844 !important; }
+.filecard-accent-pdf { border-left: 3px solid #e11d48 !important; }
+.filecard-accent-pptx { border-left: 3px solid #B08A4F !important; }
+.filecard-accent-image { border-left: 3px solid #db2777 !important; }
+.filecard-accent-video { border-left: 3px solid #102F27 !important; }
+.filecard-accent-audio { border-left: 3px solid #7c3aed !important; }
+.filecard-accent-spreadsheet { border-left: 3px solid #059669 !important; }
+.filecard-accent-code { border-left: 3px solid #334155 !important; }
+.filecard-accent-default { border-left: 3px solid #78947F !important; }
