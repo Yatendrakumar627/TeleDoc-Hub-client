@@ -38,11 +38,14 @@ import {
   Trash2,
   UploadCloud,
   Tag,
+  PanelLeftClose,
+  GripVertical,
 } from 'lucide-react';
+import { notifications } from '@mantine/notifications';
 import TelegramStatusPill from '../ui/TelegramStatusPill';
 import SearchFilterInput from '../ui/SearchFilterInput';
 import FileCard from '../../features/library/FileCard';
-import { getCollections, createCollection } from '../../services/apiClient';
+import { getCollections, createCollection, reorderCollections, reorderGroups } from '../../services/apiClient';
 
 export default function Sidebar({
   documents = [],
@@ -57,12 +60,14 @@ export default function Sidebar({
   onCreateGroup,
   onUpdateGroup,
   onDeleteGroup,
+  onReorderGroups,
   onDeleteDoc,
   onRenameDoc,
   onAssignCollection,
   onUpdateCollection,
   onDeleteCollection,
   onOpenUpload,
+  onCollapseSidebar,
   status,
   statusLoading,
 }) {
@@ -114,6 +119,138 @@ export default function Sidebar({
   // Expanded folders and groups in sidebar
   const [expandedFolders, setExpandedFolders] = useState({});
   const [expandedGroups, setExpandedGroups] = useState({});
+
+  // Drag-and-drop reordering state
+  const [draggedColId, setDraggedColId] = useState(null);
+  const [dropTargetColId, setDropTargetColId] = useState(null);
+  const [colDropPosition, setColDropPosition] = useState(null); // 'before' | 'after'
+
+  const [draggedGroupId, setDraggedGroupId] = useState(null);
+  const [dropTargetGroupId, setDropTargetGroupId] = useState(null);
+  const [groupDropPosition, setGroupDropPosition] = useState(null); // 'before' | 'after'
+
+  // Generic drag-over position calculator
+  const handleItemDragOver = (e, targetId, setTargetFn, setPositionFn, currentDraggedId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    if (!currentDraggedId || currentDraggedId === targetId) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const relY = e.clientY - rect.top;
+    const position = relY < rect.height / 2 ? 'before' : 'after';
+    setTargetFn(targetId);
+    setPositionFn(position);
+  };
+
+  // Reorder Collections handler
+  const handleCollectionDrop = async (targetColId, dropPosition) => {
+    if (!draggedColId || draggedColId === targetColId) {
+      setDraggedColId(null);
+      setDropTargetColId(null);
+      setColDropPosition(null);
+      return;
+    }
+
+    const fromIndex = collections.findIndex((c) => c.id === draggedColId);
+    if (fromIndex === -1) {
+      setDraggedColId(null);
+      setDropTargetColId(null);
+      setColDropPosition(null);
+      return;
+    }
+
+    const newCollections = [...collections];
+    const [movedItem] = newCollections.splice(fromIndex, 1);
+    let targetIndex = newCollections.findIndex((c) => c.id === targetColId);
+    if (targetIndex === -1) {
+      targetIndex = newCollections.length;
+    } else if (dropPosition === 'after') {
+      targetIndex += 1;
+    }
+
+    newCollections.splice(targetIndex, 0, movedItem);
+
+    // Optimistic UI state update
+    setCollections(newCollections);
+    setDraggedColId(null);
+    setDropTargetColId(null);
+    setColDropPosition(null);
+
+    try {
+      const orderedIds = newCollections.map((c) => c.id);
+      await reorderCollections(orderedIds);
+      notifications.show({
+        title: 'Folder Reordered',
+        message: `"${movedItem.name}" sequence updated.`,
+        color: 'emerald',
+        autoClose: 1800,
+      });
+    } catch (err) {
+      console.error('Failed to save collection order:', err);
+      loadCollections();
+      notifications.show({
+        title: 'Reorder Failed',
+        message: 'Could not save new folder order.',
+        color: 'red',
+      });
+    }
+  };
+
+  // Reorder Groups handler
+  const handleGroupDrop = async (targetGroupId, dropPosition) => {
+    if (!draggedGroupId || draggedGroupId === targetGroupId) {
+      setDraggedGroupId(null);
+      setDropTargetGroupId(null);
+      setGroupDropPosition(null);
+      return;
+    }
+
+    const fromIndex = groups.findIndex((g) => g.id === draggedGroupId);
+    if (fromIndex === -1) {
+      setDraggedGroupId(null);
+      setDropTargetGroupId(null);
+      setGroupDropPosition(null);
+      return;
+    }
+
+    const newGroups = [...groups];
+    const [movedItem] = newGroups.splice(fromIndex, 1);
+    let targetIndex = newGroups.findIndex((g) => g.id === targetGroupId);
+    if (targetIndex === -1) {
+      targetIndex = newGroups.length;
+    } else if (dropPosition === 'after') {
+      targetIndex += 1;
+    }
+
+    newGroups.splice(targetIndex, 0, movedItem);
+
+    // Optimistic UI state update
+    if (onReorderGroups) {
+      onReorderGroups(newGroups);
+    }
+    setDraggedGroupId(null);
+    setDropTargetGroupId(null);
+    setGroupDropPosition(null);
+
+    try {
+      const orderedIds = newGroups.map((g) => g.id);
+      await reorderGroups(orderedIds);
+      notifications.show({
+        title: 'Group Reordered',
+        message: `"${movedItem.name}" sequence updated.`,
+        color: 'emerald',
+        autoClose: 1800,
+      });
+    } catch (err) {
+      console.error('Failed to save group order:', err);
+      notifications.show({
+        title: 'Reorder Failed',
+        message: 'Could not save new group order.',
+        color: 'red',
+      });
+    }
+  };
 
   // Auto-expand all groups by default
   useEffect(() => {
@@ -350,17 +487,20 @@ export default function Sidebar({
       });
   }, [documents, search, scopeFilter, groupFilter, formatFilter, yearFilter, confidentialOnly, sortBy, groups]);
 
-  // Group filtered docs by Collection
+  // Group filtered docs by Collection (strictly preserves user-defined collection order)
   const groupedCollections = useMemo(() => {
     const map = {};
+    const collectionsList = [];
 
-    // Initialize map for all known collections matching scope
+    // Initialize map and list for all known collections matching scope
     collections.forEach((col) => {
       if (scopeFilter === 'all' || col.scope === scopeFilter) {
-        map[col.id] = {
+        const entry = {
           collection: col,
           files: [],
         };
+        map[col.id] = entry;
+        collectionsList.push(entry);
       }
     });
 
@@ -376,7 +516,7 @@ export default function Sidebar({
     });
 
     return {
-      collectionsList: Object.values(map),
+      collectionsList,
       unassignedFiles,
     };
   }, [collections, filteredDocs, scopeFilter]);
@@ -430,6 +570,20 @@ export default function Sidebar({
             </Text>
           </Box>
         </Group>
+
+        {onCollapseSidebar && (
+          <Tooltip label="Collapse Sidebar (Ctrl+B)" withArrow position="bottom-end">
+            <ActionIcon
+              size="28px"
+              radius="sm"
+              variant="subtle"
+              color="gray"
+              onClick={onCollapseSidebar}
+            >
+              <PanelLeftClose size={16} />
+            </ActionIcon>
+          </Tooltip>
+        )}
       </Group>
 
       {/* Telegram Status Pill */}
@@ -525,8 +679,8 @@ export default function Sidebar({
         }}
       />
 
-      {/* 3. Refined Secondary Filters: Group + Timeline + Sort + Confidential */}
-      <Group gap={6} grow>
+      {/* 3. Group & Timeline Filters (Row 1) */}
+      <Group gap="xs" grow>
         {groups.length > 0 && (
           <Select
             size="xs"
@@ -540,8 +694,12 @@ export default function Sidebar({
                 value: g.value || g.id || '',
               })),
             ]}
+            comboboxProps={{ width: 180, position: 'bottom-start', withinPortal: true, shadow: 'md' }}
             allowDeselect={false}
-            styles={{ input: { fontSize: '11px', height: '30px', minHeight: '30px', padding: '0 8px' } }}
+            styles={{
+              input: { fontSize: '11.5px', height: '32px', minHeight: '32px', padding: '0 8px' },
+              option: { fontSize: '12px', whiteSpace: 'nowrap' },
+            }}
           />
         )}
 
@@ -554,39 +712,52 @@ export default function Sidebar({
             { label: 'All Time', value: 'all' },
             ...availableYears.map((y) => ({ label: y, value: y })),
           ]}
+          comboboxProps={{ width: 160, position: 'bottom-start', withinPortal: true, shadow: 'md' }}
           allowDeselect={false}
-          styles={{ input: { fontSize: '11px', height: '30px', minHeight: '30px', padding: '0 8px' } }}
+          styles={{
+            input: { fontSize: '11.5px', height: '32px', minHeight: '32px', padding: '0 8px' },
+            option: { fontSize: '12px', whiteSpace: 'nowrap' },
+          }}
         />
+      </Group>
 
+      {/* 4. Sort Engine & Confidential Mode (Row 2) */}
+      <Group gap="xs">
         <Select
           size="xs"
-          placeholder="Sort"
+          placeholder="Sort By"
           value={sortBy}
           onChange={(val) => setSortBy(val || 'newest')}
           data={[
-            { label: '⚡ Newest', value: 'newest' },
-            { label: '⏱️ Oldest', value: 'oldest' },
-            { label: '🔤 Name', value: 'name' },
-            { label: '📦 Size', value: 'size' },
+            { label: '⚡ Newest Upload', value: 'newest' },
+            { label: '⏱️ Oldest Upload', value: 'oldest' },
+            { label: '🔤 Name (A-Z)', value: 'name' },
+            { label: '📦 File Size', value: 'size' },
           ]}
+          comboboxProps={{ width: 190, position: 'bottom-start', withinPortal: true, shadow: 'md' }}
           allowDeselect={false}
-          styles={{ input: { fontSize: '11px', height: '30px', minHeight: '30px', padding: '0 8px' } }}
+          style={{ flex: 1 }}
+          styles={{
+            input: { fontSize: '11.5px', height: '32px', minHeight: '32px', padding: '0 8px' },
+            option: { fontSize: '12px', whiteSpace: 'nowrap' },
+          }}
         />
 
         <Tooltip label={confidentialOnly ? 'Showing Confidential Only (Click to show all)' : 'Filter Confidential Only'} withArrow>
           <ActionIcon
-            size="30px"
-            radius="sm"
+            size="32px"
+            radius="md"
             variant={confidentialOnly ? 'filled' : 'light'}
             color={confidentialOnly ? 'gold' : 'gray'}
             style={{
               flexShrink: 0,
               backgroundColor: confidentialOnly ? 'var(--brand-gold)' : undefined,
               color: confidentialOnly ? '#ffffff' : undefined,
+              border: confidentialOnly ? 'none' : '1px solid var(--border-subtle)',
             }}
             onClick={() => setConfidentialOnly(!confidentialOnly)}
           >
-            <Lock size={14} />
+            <Lock size={15} />
           </ActionIcon>
         </Tooltip>
       </Group>
@@ -667,18 +838,125 @@ export default function Sidebar({
                   return acc + cFiles.length;
                 }, 0);
 
+                const isDropTargetBefore = dropTargetGroupId === grp.id && groupDropPosition === 'before';
+                const isDropTargetAfter = dropTargetGroupId === grp.id && groupDropPosition === 'after';
+                const isDragging = draggedGroupId === grp.id;
+
                 return (
                   <Box
                     key={grp.id}
+                    draggable={true}
+                    onDragStart={(e) => {
+                      const target = e.target;
+                      if (
+                        target.closest('button') ||
+                        target.closest('a') ||
+                        target.closest('input') ||
+                        target.closest('.mantine-Menu-dropdown') ||
+                        target.closest('.sidebar-card-content')
+                      ) {
+                        e.preventDefault();
+                        return;
+                      }
+                      setDraggedGroupId(grp.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                      e.dataTransfer.setData('text/plain', grp.id);
+                    }}
+                    onDragOver={(e) =>
+                      handleItemDragOver(e, grp.id, setDropTargetGroupId, setGroupDropPosition, draggedGroupId)
+                    }
+                    onDragLeave={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget)) {
+                        if (dropTargetGroupId === grp.id) {
+                          setDropTargetGroupId(null);
+                          setGroupDropPosition(null);
+                        }
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (draggedGroupId && draggedGroupId !== grp.id) {
+                        handleGroupDrop(grp.id, groupDropPosition);
+                      }
+                    }}
+                    onDragEnd={() => {
+                      setDraggedGroupId(null);
+                      setDropTargetGroupId(null);
+                      setGroupDropPosition(null);
+                    }}
                     style={{
+                      position: 'relative',
                       borderRadius: '10px',
-                      border: isSelected ? `1.5px solid ${grp.color || 'var(--brand-primary)'}` : '1px solid var(--border-subtle)',
+                      border: isSelected ? `1.5px solid ${grp.color || 'var(--brand-primary)'}` : isDragging ? '1.5px dashed var(--brand-emerald)' : '1px solid var(--border-subtle)',
                       backgroundColor: isSelected ? 'var(--surface-selected)' : 'var(--surface-card)',
                       boxShadow: isSelected ? '0 2px 8px rgba(79, 70, 229, 0.12)' : 'var(--shadow-sm)',
-                      overflow: 'hidden',
+                      overflow: 'visible',
+                      opacity: isDragging ? 0.35 : 1,
+                      transform: isDragging ? 'scale(0.98)' : 'none',
                       transition: 'all 0.18s ease-in-out',
                     }}
                   >
+                    {/* Visual Drop Indicators with dot */}
+                    {isDropTargetBefore && (
+                      <Box
+                        style={{
+                          position: 'absolute',
+                          top: -3,
+                          left: 4,
+                          right: 4,
+                          height: 3,
+                          backgroundColor: 'var(--brand-emerald)',
+                          borderRadius: 99,
+                          zIndex: 30,
+                          boxShadow: '0 0 8px rgba(24, 88, 68, 0.75)',
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        <Box
+                          style={{
+                            position: 'absolute',
+                            left: -4,
+                            top: -3,
+                            width: 9,
+                            height: 9,
+                            borderRadius: '50%',
+                            backgroundColor: 'var(--brand-emerald)',
+                            boxShadow: '0 0 6px rgba(24, 88, 68, 0.8)',
+                          }}
+                        />
+                      </Box>
+                    )}
+                    {isDropTargetAfter && (
+                      <Box
+                        style={{
+                          position: 'absolute',
+                          bottom: -3,
+                          left: 4,
+                          right: 4,
+                          height: 3,
+                          backgroundColor: 'var(--brand-emerald)',
+                          borderRadius: 99,
+                          zIndex: 30,
+                          boxShadow: '0 0 8px rgba(24, 88, 68, 0.75)',
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        <Box
+                          style={{
+                            position: 'absolute',
+                            left: -4,
+                            top: -3,
+                            width: 9,
+                            height: 9,
+                            borderRadius: '50%',
+                            backgroundColor: 'var(--brand-emerald)',
+                            boxShadow: '0 0 6px rgba(24, 88, 68, 0.8)',
+                          }}
+                        />
+                      </Box>
+                    )}
+
                     {/* Group Header Button */}
                     <Box
                       w="100%"
@@ -691,10 +969,31 @@ export default function Sidebar({
                         backgroundColor: isSelected ? `${grp.color || '#6366f1'}15` : 'var(--surface-card)',
                         cursor: 'pointer',
                         userSelect: 'none',
+                        borderRadius: '9px 9px 0 0',
                         transition: 'background-color 0.15s ease',
                       }}
                     >
                       <Group gap="xs" wrap="nowrap" style={{ overflow: 'hidden' }}>
+                        {/* Drag Handle */}
+                        <Tooltip label="Drag up or down to re-order group" position="top" withArrow openDelay={350}>
+                          <Box
+                            component="span"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'grab',
+                              color: 'var(--brand-sage)',
+                              padding: '2px',
+                              borderRadius: 3,
+                              transition: 'color 0.15s ease',
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <GripVertical size={14} />
+                          </Box>
+                        </Tooltip>
+
                         <ActionIcon
                           size="xs"
                           variant="subtle"
@@ -765,7 +1064,7 @@ export default function Sidebar({
 
                     {/* Group Inner Content (Collections + Files) */}
                     <Collapse in={isExpanded}>
-                      <Box p="xs" pt={4} style={{ borderTop: '1px solid #f1f5f9', backgroundColor: '#fafafa' }}>
+                      <Box className="sidebar-card-content" p="xs" pt={4} style={{ borderTop: '1px solid #f1f5f9', backgroundColor: '#fafafa', borderRadius: '0 0 9px 9px' }}>
                         {/* Member Collections */}
                         {memberCols.length > 0 && (
                           <Box mb="xs">
@@ -919,19 +1218,125 @@ export default function Sidebar({
               {groupedCollections.collectionsList.map(({ collection: col, files: colFiles }) => {
                 const isExpanded = !!expandedFolders[col.id];
                 const isSelected = selectedCollectionId === col.id;
+                const isDropTargetBefore = dropTargetColId === col.id && colDropPosition === 'before';
+                const isDropTargetAfter = dropTargetColId === col.id && colDropPosition === 'after';
+                const isDragging = draggedColId === col.id;
 
                 return (
                   <Box
                     key={col.id}
+                    draggable={true}
+                    onDragStart={(e) => {
+                      const target = e.target;
+                      if (
+                        target.closest('button') ||
+                        target.closest('a') ||
+                        target.closest('input') ||
+                        target.closest('.mantine-Menu-dropdown') ||
+                        target.closest('.sidebar-card-content')
+                      ) {
+                        e.preventDefault();
+                        return;
+                      }
+                      setDraggedColId(col.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                      e.dataTransfer.setData('text/plain', col.id);
+                    }}
+                    onDragOver={(e) =>
+                      handleItemDragOver(e, col.id, setDropTargetColId, setColDropPosition, draggedColId)
+                    }
+                    onDragLeave={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget)) {
+                        if (dropTargetColId === col.id) {
+                          setDropTargetColId(null);
+                          setColDropPosition(null);
+                        }
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (draggedColId && draggedColId !== col.id) {
+                        handleCollectionDrop(col.id, colDropPosition);
+                      }
+                    }}
+                    onDragEnd={() => {
+                      setDraggedColId(null);
+                      setDropTargetColId(null);
+                      setColDropPosition(null);
+                    }}
                     style={{
+                      position: 'relative',
                       borderRadius: '10px',
-                      border: isSelected ? '1.5px solid var(--brand-primary)' : '1px solid var(--border-subtle)',
+                      border: isSelected ? '1.5px solid var(--brand-primary)' : isDragging ? '1.5px dashed var(--brand-emerald)' : '1px solid var(--border-subtle)',
                       backgroundColor: isSelected ? 'var(--surface-selected)' : 'var(--surface-card)',
                       boxShadow: isSelected ? '0 2px 8px rgba(79, 70, 229, 0.12)' : 'var(--shadow-sm)',
-                      overflow: 'hidden',
+                      overflow: 'visible',
+                      opacity: isDragging ? 0.35 : 1,
+                      transform: isDragging ? 'scale(0.98)' : 'none',
                       transition: 'all 0.18s ease-in-out',
                     }}
                   >
+                    {/* Visual Drop Indicators with dot */}
+                    {isDropTargetBefore && (
+                      <Box
+                        style={{
+                          position: 'absolute',
+                          top: -3,
+                          left: 4,
+                          right: 4,
+                          height: 3,
+                          backgroundColor: 'var(--brand-emerald)',
+                          borderRadius: 99,
+                          zIndex: 30,
+                          boxShadow: '0 0 8px rgba(24, 88, 68, 0.75)',
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        <Box
+                          style={{
+                            position: 'absolute',
+                            left: -4,
+                            top: -3,
+                            width: 9,
+                            height: 9,
+                            borderRadius: '50%',
+                            backgroundColor: 'var(--brand-emerald)',
+                            boxShadow: '0 0 6px rgba(24, 88, 68, 0.8)',
+                          }}
+                        />
+                      </Box>
+                    )}
+                    {isDropTargetAfter && (
+                      <Box
+                        style={{
+                          position: 'absolute',
+                          bottom: -3,
+                          left: 4,
+                          right: 4,
+                          height: 3,
+                          backgroundColor: 'var(--brand-emerald)',
+                          borderRadius: 99,
+                          zIndex: 30,
+                          boxShadow: '0 0 8px rgba(24, 88, 68, 0.75)',
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        <Box
+                          style={{
+                            position: 'absolute',
+                            left: -4,
+                            top: -3,
+                            width: 9,
+                            height: 9,
+                            borderRadius: '50%',
+                            backgroundColor: 'var(--brand-emerald)',
+                            boxShadow: '0 0 6px rgba(24, 88, 68, 0.8)',
+                          }}
+                        />
+                      </Box>
+                    )}
+
                     {/* Collection Header Folder Bar */}
                     <Box
                       w="100%"
@@ -944,10 +1349,31 @@ export default function Sidebar({
                         backgroundColor: isSelected ? 'var(--surface-selected)' : 'var(--surface-card)',
                         cursor: 'pointer',
                         userSelect: 'none',
+                        borderRadius: '9px 9px 0 0',
                         transition: 'background-color 0.15s ease',
                       }}
                     >
                       <Group gap="xs" wrap="nowrap" style={{ overflow: 'hidden' }}>
+                        {/* Drag Grip Handle */}
+                        <Tooltip label="Drag up or down to re-order folder" position="top" withArrow openDelay={350}>
+                          <Box
+                            component="span"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'grab',
+                              color: 'var(--brand-sage)',
+                              padding: '2px',
+                              borderRadius: 3,
+                              transition: 'color 0.15s ease',
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <GripVertical size={14} />
+                          </Box>
+                        </Tooltip>
+
                         <ActionIcon
                           size="xs"
                           variant="subtle"
@@ -1017,7 +1443,7 @@ export default function Sidebar({
 
                     {/* Collapsible List of Individual Files inside this Collection */}
                     <Collapse in={isExpanded}>
-                      <Stack gap={4} p="xs" pl="md">
+                      <Stack className="sidebar-card-content" gap={4} p="xs" pl="md">
                         {colFiles.length === 0 ? (
                           <Text size="xs" c="dimmed" fs="italic" py={2}>
                             No files in this collection

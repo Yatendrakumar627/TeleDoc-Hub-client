@@ -1,10 +1,11 @@
 import axios from 'axios';
+import { API_BASE_URL, API_TIMEOUT, UPLOAD_TIMEOUT } from '../config';
 
 const TOKEN_KEY = 'teledoc_vault_jwt';
 
 const apiClient = axios.create({
-  baseURL: '/api',
-  timeout: 45000,
+  baseURL: API_BASE_URL,
+  timeout: API_TIMEOUT,
 });
 
 // Interceptor: Inject JWT token into every request
@@ -103,7 +104,7 @@ export const uploadDocument = async (fileOrFiles, onProgress = null, options = {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
-    timeout: 180000, // 3 minutes timeout for large media/video uploads
+    timeout: UPLOAD_TIMEOUT, // configurable timeout for large media/video uploads
     onUploadProgress: (progressEvent) => {
       if (onProgress && progressEvent.total) {
         const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -154,6 +155,11 @@ export const deleteCollection = async (id, cascade = false) => {
   return res.data;
 };
 
+export const reorderCollections = async (orderedIds) => {
+  const res = await apiClient.put('/collections/reorder', { orderedIds });
+  return res.data;
+};
+
 export const assignDocumentCollection = async (docId, collectionId, collectionName) => {
   const res = await apiClient.patch(`/documents/${docId}/collection`, {
     collectionId,
@@ -199,6 +205,11 @@ export const updateGroup = async (id, updates) => {
 
 export const deleteGroup = async (id, cascade = false) => {
   const res = await apiClient.delete(`/groups/${id}`, { params: { cascade } });
+  return res.data;
+};
+
+export const reorderGroups = async (orderedIds) => {
+  const res = await apiClient.put('/groups/reorder', { orderedIds });
   return res.data;
 };
 

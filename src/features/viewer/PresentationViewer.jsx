@@ -29,6 +29,7 @@ import {
 import SourceBadge from '../../components/ui/SourceBadge';
 import EditableDocumentTitle from '../../components/ui/EditableDocumentTitle';
 import { formatBytes } from '../../utils/formatters';
+import { API_BASE_URL } from '../../config';
 
 export default function PresentationViewer({ document, content, onRenameFile, onCloseFile }) {
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
@@ -38,7 +39,7 @@ export default function PresentationViewer({ document, content, onRenameFile, on
   const slideCount = slides.length || content?.slideCount || 0;
   const currentSlide = slides[currentSlideIndex] || null;
 
-  const downloadUrl = `/api/documents/${document.id}/download`;
+  const downloadUrl = `${API_BASE_URL}/documents/${document.id}/download`;
 
   // Keyboard navigation: ArrowLeft / ArrowRight
   useEffect(() => {

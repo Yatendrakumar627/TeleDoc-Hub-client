@@ -34,6 +34,7 @@ import { renderAsync } from 'docx-preview';
 import SourceBadge from '../../components/ui/SourceBadge';
 import EditableDocumentTitle from '../../components/ui/EditableDocumentTitle';
 import { formatBytes } from '../../utils/formatters';
+import { API_BASE_URL } from '../../config';
 
 export default function WordViewer({ document, content, onRenameFile, onCloseFile }) {
   const [zoom, setZoom] = useState(1);
@@ -46,7 +47,7 @@ export default function WordViewer({ document, content, onRenameFile, onCloseFil
   const docxContainerRef = useRef(null);
 
   const token = localStorage.getItem('teledoc_vault_jwt') || '';
-  const downloadUrl = `/api/documents/${document.id}/download`;
+  const downloadUrl = `${API_BASE_URL}/documents/${document.id}/download`;
 
   useEffect(() => {
     let isCancelled = false;
@@ -61,7 +62,7 @@ export default function WordViewer({ document, content, onRenameFile, onCloseFil
         let arrayBuffer = null;
 
         // Progressive chunked stream reading via ReadableStream
-        const streamUrl = `/api/documents/${document.id}/view?token=${encodeURIComponent(token)}`;
+        const streamUrl = `${API_BASE_URL}/documents/${document.id}/view?token=${encodeURIComponent(token)}`;
         const res = await fetch(streamUrl);
         if (!res.ok) {
           throw new Error(`Failed to stream document: ${res.statusText}`);

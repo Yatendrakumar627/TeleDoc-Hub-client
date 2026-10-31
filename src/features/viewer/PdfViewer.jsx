@@ -27,6 +27,7 @@ import {
 import SourceBadge from '../../components/ui/SourceBadge';
 import EditableDocumentTitle from '../../components/ui/EditableDocumentTitle';
 import { formatBytes } from '../../utils/formatters';
+import { API_BASE_URL } from '../../config';
 
 export default function PdfViewer({ document, content, onRenameFile, onCloseFile }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -61,9 +62,9 @@ export default function PdfViewer({ document, content, onRenameFile, onCloseFile
   }, [blobUrl]);
 
   const token = localStorage.getItem('teledoc_vault_jwt') || '';
-  const streamUrl = `/api/documents/${document.id}/view?token=${encodeURIComponent(token)}`;
+  const streamUrl = `${API_BASE_URL}/documents/${document.id}/view?token=${encodeURIComponent(token)}`;
   const activePdfUrl = streamUrl;
-  const downloadUrl = `/api/documents/${document.id}/download`;
+  const downloadUrl = `${API_BASE_URL}/documents/${document.id}/download`;
 
   const handlePrint = () => {
     const iframe = window.frames['pdf-embed-frame'];

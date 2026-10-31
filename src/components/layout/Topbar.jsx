@@ -1,6 +1,6 @@
 import React from 'react';
-import { Group, Button, Paper, Box, Text, Avatar, Tooltip } from '@mantine/core';
-import { UploadCloud, LogOut, ShieldCheck } from 'lucide-react';
+import { Group, Button, Paper, Box, Text, Avatar, Tooltip, ActionIcon } from '@mantine/core';
+import { UploadCloud, LogOut, ShieldCheck, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import GoogleLinkInput from '../../features/upload/GoogleLinkInput';
 import { useAuth } from '../../context/AuthContext';
 
@@ -8,6 +8,8 @@ export default function Topbar({
   onOpenUploadModal,
   onIngestGoogleLink,
   isIngesting = false,
+  sidebarOpened = true,
+  onToggleSidebar,
 }) {
   const { user, logout } = useAuth();
 
@@ -25,13 +27,39 @@ export default function Topbar({
       }}
     >
       <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-        {/* Google Workspace Link Ingestion Bar */}
-        <Box style={{ flex: 1, minWidth: 260, maxWidth: 580 }}>
-          <GoogleLinkInput
-            onIngest={onIngestGoogleLink}
-            loading={isIngesting}
-          />
-        </Box>
+        {/* Toggle Sidebar & Google Workspace Link Ingestion Bar */}
+        <Group gap="xs" style={{ flex: 1, minWidth: 260, maxWidth: 640 }} wrap="nowrap">
+          {onToggleSidebar && (
+            <Tooltip
+              label={sidebarOpened ? 'Collapse Sidebar (Ctrl+B)' : 'Expand Sidebar (Ctrl+B)'}
+              withArrow
+              position="bottom"
+            >
+              <ActionIcon
+                size="34px"
+                radius="md"
+                variant="subtle"
+                color="gray"
+                onClick={onToggleSidebar}
+                style={{
+                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: '#ffffff',
+                  color: 'var(--brand-forest)',
+                  flexShrink: 0,
+                }}
+              >
+                {sidebarOpened ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+              </ActionIcon>
+            </Tooltip>
+          )}
+
+          <Box style={{ flex: 1 }}>
+            <GoogleLinkInput
+              onIngest={onIngestGoogleLink}
+              loading={isIngesting}
+            />
+          </Box>
+        </Group>
 
         {/* User Status, Upload & Logout Action */}
         <Group gap="xs">

@@ -1,11 +1,11 @@
 # Dependency directories
 node_modules/
 
-# Environment files with credentials
+# Environment files with local/config values (never commit them)
 .env
+.env.*
 *.env
-.env.local
-.env.*.local
+!.env.example
 
 # Build outputs
 dist/

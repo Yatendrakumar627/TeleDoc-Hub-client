@@ -34,6 +34,7 @@ import TypographyToolbar from '../../components/ui/TypographyToolbar';
 import FeedbackBanner from '../../components/ui/FeedbackBanner';
 import EditableDocumentTitle from '../../components/ui/EditableDocumentTitle';
 import { formatReadingTime, formatBytes } from '../../utils/formatters';
+import { API_BASE_URL } from '../../config';
 
 export default function DocReader({ document, content, onRenameFile, onCloseFile }) {
   const [fontSize, setFontSize] = useState('md');
@@ -78,7 +79,7 @@ export default function DocReader({ document, content, onRenameFile, onCloseFile
     return paragraphs.map((para) => para.split(regex));
   }, [text, searchTerm]);
 
-  const downloadUrl = `/api/documents/${document?.id}/download`;
+  const downloadUrl = `${API_BASE_URL}/documents/${document?.id}/download`;
 
   return (
     <Box

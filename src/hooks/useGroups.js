@@ -65,6 +65,10 @@ export function useGroups(enabled = true) {
     }
   }, [selectedGroupId]);
 
+  const reorderGroupsInState = useCallback((newOrderedGroups) => {
+    setGroups(newOrderedGroups);
+  }, []);
+
   return {
     groups,
     loading,
@@ -76,6 +80,7 @@ export function useGroups(enabled = true) {
     addGroup,
     updateGroupInState,
     removeGroupFromState,
+    reorderGroupsInState,
   };
 }
 

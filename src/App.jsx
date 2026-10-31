@@ -60,6 +60,7 @@ function VaultWorkspace() {
     addGroup,
     updateGroupInState,
     removeGroupFromState,
+    reorderGroupsInState,
     loadGroups,
   } = useGroups();
 
@@ -377,6 +378,7 @@ function VaultWorkspace() {
           onCreateGroup: handleCreateGroup,
           onUpdateGroup: handleUpdateGroup,
           onDeleteGroup: handleDeleteGroup,
+          onReorderGroups: reorderGroupsInState,
           onDeleteDoc: handleRemoveDoc,
           onRenameDoc: renameDocument,
           onAssignCollection: handleAssignDocumentCollection,

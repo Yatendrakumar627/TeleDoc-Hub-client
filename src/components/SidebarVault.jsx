@@ -23,6 +23,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import TelegramStatusBadge from './TelegramStatusBadge';
+import { API_BASE_URL } from '../config';
 
 export default function SidebarVault({
   documents = [],
@@ -41,7 +42,7 @@ export default function SidebarVault({
     if (!docId || prefetchedIds.current.has(docId)) return;
     prefetchedIds.current.add(docId);
     const token = localStorage.getItem('teledoc_vault_jwt') || '';
-    fetch(`/api/documents/${docId}/view?token=${encodeURIComponent(token)}`, {
+    fetch(`${API_BASE_URL}/documents/${docId}/view?token=${encodeURIComponent(token)}`, {
       headers: { Range: 'bytes=0-65535' },
     }).catch(() => {});
   };

@@ -41,6 +41,7 @@ import SourceBadge from '../../components/ui/SourceBadge';
 import SearchFilterInput from '../../components/ui/SearchFilterInput';
 import EditableDocumentTitle from '../../components/ui/EditableDocumentTitle';
 import { formatBytes } from '../../utils/formatters';
+import { API_BASE_URL } from '../../config';
 
 export default function MediaBinaryViewer({ document, content, onRenameFile, onCloseFile }) {
   const format = (content?.format || document?.format || '').toLowerCase();
@@ -74,10 +75,10 @@ export default function MediaBinaryViewer({ document, content, onRenameFile, onC
   const [archiveSearch, setArchiveSearch] = useState('');
 
   const token = localStorage.getItem('teledoc_vault_jwt') || '';
-  const streamUrl = `/api/documents/${document.id}/view?token=${encodeURIComponent(token)}`;
+  const streamUrl = `${API_BASE_URL}/documents/${document.id}/view?token=${encodeURIComponent(token)}`;
   // Videos and Audio always stream progressively via HTTP 206 Range requests like YouTube
   const activeMediaUrl = isVideo || isAudio ? streamUrl : (content?.dataUrl || streamUrl);
-  const downloadUrl = `/api/documents/${document.id}/download`;
+  const downloadUrl = `${API_BASE_URL}/documents/${document.id}/download`;
 
   // Reset zoom, pan, and playback errors when document changes
   useEffect(() => {

@@ -32,6 +32,7 @@ import {
 import SourceBadge from '../../components/ui/SourceBadge';
 import { formatBytes } from '../../utils/formatters';
 import { getDocTypeMeta } from '../../utils/docTypes';
+import { API_BASE_URL } from '../../config';
 
 export default function CollectionHubView({
   collection,
@@ -259,7 +260,7 @@ export default function CollectionHubView({
                             variant="subtle"
                             color="gray"
                             component="a"
-                            href={`/api/documents/${file.id}/download`}
+                            href={`${API_BASE_URL}/documents/${file.id}/download`}
                             download={file.filename}
                             onClick={(e) => e.stopPropagation()}
                           >

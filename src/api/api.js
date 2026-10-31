@@ -1,8 +1,9 @@
 import axios from 'axios';
+import { API_BASE_URL, API_TIMEOUT } from '../config';
 
 const API = axios.create({
-  baseURL: '/api',
-  timeout: 45000,
+  baseURL: API_BASE_URL,
+  timeout: API_TIMEOUT,
 });
 
 export const getStatus = async () => {
