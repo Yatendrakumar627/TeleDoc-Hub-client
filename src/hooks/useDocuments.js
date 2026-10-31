@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getDocuments, getDocumentContent, deleteDocument, updateDocument } from '../services/apiClient';
 import { notifications } from '@mantine/notifications';
+import { extractErrorMessage } from '../utils/formatters';
 
 export function useDocuments() {
   const [documents, setDocuments] = useState([]);
@@ -54,7 +55,7 @@ export function useDocuments() {
       } catch (err) {
         notifications.show({
           title: 'Error Loading Document',
-          message: err.response?.data?.error || err.message,
+          message: extractErrorMessage(err, 'Operation failed.'),
           color: 'red',
         });
       } finally {
@@ -111,7 +112,7 @@ export function useDocuments() {
       } catch (err) {
         notifications.show({
           title: 'Delete Failed',
-          message: err.response?.data?.error || err.message,
+          message: extractErrorMessage(err, 'Operation failed.'),
           color: 'red',
         });
       }
@@ -153,7 +154,7 @@ export function useDocuments() {
       } catch (err) {
         notifications.show({
           title: 'Rename Failed',
-          message: err.response?.data?.error || err.message,
+          message: extractErrorMessage(err, 'Operation failed.'),
           color: 'red',
         });
         throw err;

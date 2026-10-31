@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { uploadDocument, ingestGoogleLink } from '../services/apiClient';
 import { notifications } from '@mantine/notifications';
+import { extractErrorMessage } from '../utils/formatters';
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB Telegram limit
 
@@ -66,7 +67,7 @@ export function useUpload(onSuccess) {
 
         return res;
       } catch (err) {
-        const msg = err.response?.data?.error || err.message;
+        const msg = extractErrorMessage(err, 'Upload failed.');
         setError(msg);
         notifications.show({
           title: 'Upload Failed',
@@ -104,7 +105,7 @@ export function useUpload(onSuccess) {
 
         return res;
       } catch (err) {
-        const msg = err.response?.data?.error || err.message;
+        const msg = extractErrorMessage(err, 'Upload failed.');
         setError(msg);
         notifications.show({
           title: 'Ingestion Error',

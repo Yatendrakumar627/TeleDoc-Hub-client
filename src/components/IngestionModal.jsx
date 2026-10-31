@@ -20,6 +20,7 @@ import {
   FileCheck,
   CheckCircle2,
 } from 'lucide-react';
+import { extractErrorMessage } from '../utils/formatters';
 
 export default function IngestionModal({
   opened,
@@ -51,7 +52,7 @@ export default function IngestionModal({
       await onUploadFile(file);
       onClose();
     } catch (err) {
-      setLocalError(err.response?.data?.error || err.message);
+      setLocalError(extractErrorMessage(err, 'Failed to process document.'));
     }
   };
 
@@ -66,7 +67,7 @@ export default function IngestionModal({
       setCustomTitle('');
       onClose();
     } catch (err) {
-      setLocalError(err.response?.data?.error || err.message);
+      setLocalError(extractErrorMessage(err, 'Failed to process document.'));
     }
   };
 

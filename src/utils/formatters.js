@@ -33,3 +33,26 @@ export const truncateText = (text, maxLength = 120) => {
   return `${text.substring(0, maxLength).trim()}...`;
 };
 
+/**
+ * Safely extracts a displayable string from any error object,
+ * preventing Minified React Error #31 (Objects are not valid as a React child).
+ */
+export const extractErrorMessage = (err, fallback = 'An unexpected error occurred.') => {
+  if (!err) return fallback;
+  if (typeof err === 'string') return err;
+
+  const data = err.response?.data;
+  if (data) {
+    if (typeof data.error === 'string') return data.error;
+    if (data.error && typeof data.error === 'object') {
+      return data.error.message || (typeof data.error.code === 'string' ? `Error: ${data.error.code}` : JSON.stringify(data.error));
+    }
+    if (typeof data.message === 'string') return data.message;
+    if (typeof data === 'string') return data;
+  }
+
+  if (typeof err.message === 'string') return err.message;
+  return fallback;
+};
+
+

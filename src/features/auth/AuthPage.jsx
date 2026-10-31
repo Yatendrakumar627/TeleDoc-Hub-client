@@ -29,6 +29,7 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { extractErrorMessage } from '../../utils/formatters';
 
 export default function AuthPage() {
   const { login, register } = useAuth();
@@ -70,7 +71,7 @@ export default function AuthPage() {
         await login(email.trim(), password);
       }
     } catch (err) {
-      setErrorMessage(err.response?.data?.error || err.message || 'Authentication error.');
+      setErrorMessage(extractErrorMessage(err, 'Authentication error. Please check server connection.'));
     } finally {
       setSubmitting(false);
     }

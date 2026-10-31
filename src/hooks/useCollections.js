@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getCollections, createCollection as apiCreateCollection, deleteCollection as apiDeleteCollection } from '../services/apiClient';
 import { notifications } from '@mantine/notifications';
+import { extractErrorMessage } from '../utils/formatters';
 
 export function useCollections() {
   const [collections, setCollections] = useState([]);
@@ -35,7 +36,7 @@ export function useCollections() {
     } catch (err) {
       notifications.show({
         title: 'Error Creating Collection',
-        message: err.response?.data?.error || err.message,
+        message: extractErrorMessage(err, 'Failed to create collection.'),
         color: 'red',
       });
       throw err;
@@ -54,7 +55,7 @@ export function useCollections() {
     } catch (err) {
       notifications.show({
         title: 'Error Deleting Collection',
-        message: err.response?.data?.error || err.message,
+        message: extractErrorMessage(err, 'Failed to create collection.'),
         color: 'red',
       });
     }

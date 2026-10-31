@@ -21,6 +21,7 @@ import WorkspaceLayout from './components/layout/WorkspaceLayout';
 import ViewerContainer from './features/viewer/ViewerContainer';
 import IngestionModal from './features/upload/IngestionModal';
 import AuthPage from './features/auth/AuthPage';
+import { extractErrorMessage } from './utils/formatters';
 
 function VaultWorkspace() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -162,7 +163,7 @@ function VaultWorkspace() {
     } catch (err) {
       notifications.show({
         title: 'Failed to Move File',
-        message: err.message,
+        message: extractErrorMessage(err, 'Failed to move file.'),
         color: 'red',
       });
     }
@@ -187,7 +188,7 @@ function VaultWorkspace() {
     } catch (err) {
       notifications.show({
         title: 'Update Failed',
-        message: err.response?.data?.error || err.message,
+        message: extractErrorMessage(err, 'Failed to update collection.'),
         color: 'red',
       });
       throw err;
@@ -215,7 +216,7 @@ function VaultWorkspace() {
     } catch (err) {
       notifications.show({
         title: 'Delete Failed',
-        message: err.response?.data?.error || err.message,
+        message: extractErrorMessage(err, 'Failed to update collection.'),
         color: 'red',
       });
     }
@@ -235,7 +236,7 @@ function VaultWorkspace() {
     } catch (err) {
       notifications.show({
         title: 'Failed to Create Group',
-        message: err.response?.data?.error || err.message,
+        message: extractErrorMessage(err, 'Failed to update collection.'),
         color: 'red',
       });
       throw err;
@@ -257,7 +258,7 @@ function VaultWorkspace() {
     } catch (err) {
       notifications.show({
         title: 'Update Failed',
-        message: err.response?.data?.error || err.message,
+        message: extractErrorMessage(err, 'Failed to update collection.'),
         color: 'red',
       });
       throw err;
@@ -284,7 +285,7 @@ function VaultWorkspace() {
     } catch (err) {
       notifications.show({
         title: 'Delete Failed',
-        message: err.response?.data?.error || err.message,
+        message: extractErrorMessage(err, 'Failed to update collection.'),
         color: 'red',
       });
       throw err;
@@ -309,7 +310,7 @@ function VaultWorkspace() {
     } catch (err) {
       notifications.show({
         title: 'Failed to Create Collection',
-        message: err.response?.data?.error || err.message,
+        message: extractErrorMessage(err, 'Failed to update collection.'),
         color: 'red',
       });
       throw err;
@@ -334,7 +335,7 @@ function VaultWorkspace() {
     } catch (err) {
       notifications.show({
         title: 'Failed to Add Collection to Group',
-        message: err.response?.data?.error || err.message,
+        message: extractErrorMessage(err, 'Failed to update collection.'),
         color: 'red',
       });
       throw err;

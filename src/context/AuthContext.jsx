@@ -7,6 +7,7 @@ import {
   getStoredToken,
 } from '../services/apiClient';
 import { notifications } from '@mantine/notifications';
+import { extractErrorMessage } from '../utils/formatters';
 
 const AuthContext = createContext(null);
 
@@ -67,7 +68,7 @@ export function AuthProvider({ children }) {
       });
       return res;
     } catch (err) {
-      const msg = err.response?.data?.error || err.message || 'Login failed.';
+      const msg = extractErrorMessage(err, 'Login failed. Please check server connection.');
       notifications.show({
         title: 'Authentication Failed',
         message: msg,
@@ -89,7 +90,7 @@ export function AuthProvider({ children }) {
       });
       return res;
     } catch (err) {
-      const msg = err.response?.data?.error || err.message || 'Registration failed.';
+      const msg = extractErrorMessage(err, 'Registration failed. Please check server connection.');
       notifications.show({
         title: 'Registration Error',
         message: msg,
