@@ -41,6 +41,8 @@ import {
   FolderInput,
   X,
   AlertTriangle,
+  Home,
+  ChevronRight,
 } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
 import FileCard from '../library/FileCard';
@@ -59,6 +61,7 @@ export default function GroupHubView({
   onAssignCollectionToGroup,
   onBatchMoveFiles,
   onBatchDeleteFiles,
+  onNavigateHome,
 }) {
   const isMobile = useMediaQuery('(max-width: 768px)');
 
@@ -355,6 +358,33 @@ export default function GroupHubView({
 
   return (
     <Box p={isMobile ? 'xs' : 'lg'}>
+      {/* 1-Click Back to Main Page Breadcrumb Navigation */}
+      {onNavigateHome && (
+        <Group gap={6} mb="sm" align="center">
+          <Button
+            variant="subtle"
+            size="xs"
+            leftSection={<Home size={14} />}
+            onClick={onNavigateHome}
+            style={{
+              padding: '0 8px',
+              height: '28px',
+              color: 'var(--brand-primary)',
+              fontWeight: 600,
+              fontSize: '12px',
+              borderRadius: '6px',
+              backgroundColor: 'rgba(24, 88, 68, 0.06)',
+            }}
+          >
+            Main Page
+          </Button>
+          <ChevronRight size={14} color="#94a3b8" />
+          <Text size="xs" fw={700} style={{ color: 'var(--brand-forest)' }}>
+            {group.name}
+          </Text>
+        </Group>
+      )}
+
       {/* Group Header Hero Banner */}
       <Paper
         p={isMobile ? 'sm' : 'lg'}
@@ -844,7 +874,7 @@ export default function GroupHubView({
 
           <Paper p="sm" radius="md" withBorder style={{ backgroundColor: '#fef2f2' }}>
             <Checkbox
-              label="Cascade Delete: Permanently delete all member collections and files from Telegram Vault"
+              label="Cascade Delete: Permanently delete all member collections and files from Cloud Storage Vault"
               color="red"
               checked={cascadeDelete}
               onChange={(e) => setCascadeDelete(e.currentTarget.checked)}
@@ -1079,7 +1109,7 @@ export default function GroupHubView({
       >
         <Stack gap="md">
           <Text size="xs" c="dimmed">
-            Select a target collection or move files to the unassigned Inbox. All database links and Telegram cloud blobs remain intact.
+            Select a target collection or move files to the unassigned Inbox. Encrypted storage and file integrity remain intact.
           </Text>
 
           <Select
@@ -1145,7 +1175,7 @@ export default function GroupHubView({
         <Stack gap="md">
           <Paper p="sm" radius="md" style={{ backgroundColor: '#fef2f2', border: '1px solid #fee2e2' }}>
             <Text size="xs" c="red" fw={600}>
-              ⚠️ Warning: This will permanently delete {selectedFileIds.length} files ({formatBytes(selectedBytes)}) from both the database and encrypted Telegram storage.
+              ⚠️ Warning: This will permanently delete {selectedFileIds.length} files ({formatBytes(selectedBytes)}) from both the database and cloud storage.
             </Text>
           </Paper>
 

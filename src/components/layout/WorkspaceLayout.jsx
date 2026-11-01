@@ -65,6 +65,12 @@ export default function WorkspaceLayout({
     sidebarProps?.onSelectGroup?.(grp);
   };
 
+  const handleNavigateHome = () => {
+    if (isMobile) setSidebarOpened(false);
+    sidebarProps?.onNavigateHome?.();
+    topbarProps?.onNavigateHome?.();
+  };
+
   return (
     <AppShell
       navbar={{
@@ -98,6 +104,7 @@ export default function WorkspaceLayout({
           onSelectDoc={handleSelectDoc}
           onSelectCollection={handleSelectCollection}
           onSelectGroup={handleSelectGroup}
+          onNavigateHome={handleNavigateHome}
           onCollapseSidebar={() => setSidebarOpened(false)}
         />
       </AppShell.Navbar>
@@ -156,6 +163,7 @@ export default function WorkspaceLayout({
           {...topbarProps}
           sidebarOpened={sidebarOpened}
           onToggleSidebar={toggleSidebar}
+          onNavigateHome={handleNavigateHome}
         />
         <Box style={{ width: '100%', minHeight: 'calc(100vh - 65px)' }}>
           {children}

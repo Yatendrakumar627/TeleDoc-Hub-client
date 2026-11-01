@@ -318,7 +318,7 @@ export default function IngestionModal({
 
                 <Alert color="emerald" variant="light" radius="md">
                   <Text size="xs">
-                    💡 TeleDoc Hub will fetch the snapshot, encrypt it with AES-256, and archive it into your Telegram + MongoDB Vault.
+                    💡 TeleDoc Hub will fetch the snapshot, encrypt it with AES-256, and archive it into your Cloud Vault.
                   </Text>
                 </Alert>
 

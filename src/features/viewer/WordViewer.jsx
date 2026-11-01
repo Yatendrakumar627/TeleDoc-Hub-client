@@ -559,7 +559,7 @@ export default function WordViewer({ document, content, onRenameFile, onCloseFil
 
                 {/* 4. Primary CTAs & Status Badge */}
                 <Group gap="xs" align="center" wrap="nowrap">
-                  <Tooltip label="Decrypted Zero-Knowledge Telegram Blob verified" withArrow>
+                  <Tooltip label="Encrypted in Vault • Verified" withArrow>
                     <Badge
                       variant="light"
                       color="teal"
@@ -711,7 +711,7 @@ export default function WordViewer({ document, content, onRenameFile, onCloseFil
                   <Text size="xs" c="dimmed">
                     {streamProgress?.received
                       ? `${formatBytes(streamProgress.received)} of ${formatBytes(streamProgress.total)}`
-                      : 'Connecting to Telegram Vault...'}
+                      : 'Connecting to Vault...'}
                   </Text>
                   <Text size="xs" fw={600} c="blue">
                     {streamProgress?.speed || ''}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Group, Button, Paper, Box, Text, Avatar, Tooltip, ActionIcon, Stack } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { UploadCloud, LogOut, ShieldCheck, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { UploadCloud, LogOut, ShieldCheck, PanelLeftClose, PanelLeftOpen, Home } from 'lucide-react';
 import GoogleLinkInput from '../../features/upload/GoogleLinkInput';
 import { useAuth } from '../../context/AuthContext';
 
@@ -11,6 +11,8 @@ export default function Topbar({
   isIngesting = false,
   sidebarOpened = true,
   onToggleSidebar,
+  onNavigateHome,
+  isHome = false,
 }) {
   const { user, logout } = useAuth();
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -48,6 +50,25 @@ export default function Topbar({
                 }}
               >
                 {sidebarOpened ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+              </ActionIcon>
+            )}
+
+            {onNavigateHome && (
+              <ActionIcon
+                size="32px"
+                radius="md"
+                variant={isHome ? 'filled' : 'subtle'}
+                color={isHome ? 'emerald' : 'gray'}
+                onClick={onNavigateHome}
+                title="Go to Main Page"
+                style={{
+                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: isHome ? 'var(--brand-primary)' : '#ffffff',
+                  color: isHome ? '#F2EBDD' : 'var(--brand-forest)',
+                  flexShrink: 0,
+                }}
+              >
+                <Home size={15} />
               </ActionIcon>
             )}
 
@@ -155,6 +176,32 @@ export default function Topbar({
               </Tooltip>
             )}
 
+            {onNavigateHome && (
+              <Tooltip label="Go to Main Page (Dashboard)" withArrow position="bottom">
+                <Button
+                  size="sm"
+                  radius="md"
+                  variant={isHome ? 'filled' : 'subtle'}
+                  color={isHome ? 'emerald' : 'gray'}
+                  leftSection={<Home size={15} />}
+                  onClick={onNavigateHome}
+                  style={{
+                    height: '34px',
+                    padding: '0 12px',
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: isHome ? 'var(--brand-primary)' : '#ffffff',
+                    color: isHome ? '#F2EBDD' : 'var(--brand-forest)',
+                    fontWeight: 600,
+                    fontSize: '12px',
+                    flexShrink: 0,
+                    boxShadow: isHome ? '0 2px 8px rgba(24, 88, 68, 0.25)' : 'none',
+                  }}
+                >
+                  Main Page
+                </Button>
+              </Tooltip>
+            )}
+
             <Box style={{ flex: 1 }}>
               <GoogleLinkInput
                 onIngest={onIngestGoogleLink}
@@ -166,7 +213,7 @@ export default function Topbar({
           {/* User Status, Upload & Logout Action */}
           <Group gap="xs">
             {user && (
-              <Tooltip label={`Zero-Knowledge Session • ${user.email} (${user.role})`} withArrow>
+              <Tooltip label={user.role === 'admin' ? `${user.email} • Admin` : user.email} withArrow>
                 <Paper
                   px="sm"
                   py={5}

@@ -18,6 +18,8 @@ export default function ViewerContainer({
   collection = null,
   collectionFiles = [],
   allDocuments = [],
+  groups = [],
+  status = null,
   isViewingCollectionHub = false,
   group = null,
   isViewingGroupHub = false,
@@ -36,6 +38,7 @@ export default function ViewerContainer({
   onBatchMoveFiles,
   onBatchDeleteFiles,
   onCloseFile,
+  onNavigateHome,
   isProcessing = false,
 }) {
   // Only show full fallback if no document metadata exists yet
@@ -43,7 +46,7 @@ export default function ViewerContainer({
     return (
       <StateFallback
         type="loading"
-        message="Streaming & decrypting file from Telegram Vault..."
+        message="Decrypting and loading document..."
         height={450}
       />
     );
@@ -73,6 +76,7 @@ export default function ViewerContainer({
         onAssignCollectionToGroup={onAssignCollectionToGroup}
         onBatchMoveFiles={onBatchMoveFiles}
         onBatchDeleteFiles={onBatchDeleteFiles}
+        onNavigateHome={onNavigateHome}
       />
     );
   }
@@ -99,16 +103,23 @@ export default function ViewerContainer({
         onDeleteCollection={onDeleteCollection}
         onBatchMoveFiles={onBatchMoveFiles}
         onBatchDeleteFiles={onBatchDeleteFiles}
+        onNavigateHome={onNavigateHome}
       />
     );
   }
 
-  // 3. Empty State (no document selected)
+  // 3. Vault Command Center (Dashboard when no document is active)
   if (!document) {
     return (
       <EmptyState
         onOpenUpload={onOpenUpload}
         isProcessing={isProcessing}
+        allDocuments={allDocuments}
+        groups={groups}
+        status={status}
+        onSelectFile={onSelectFile}
+        onSelectCollection={onSelectCollection}
+        onOpenCollectionHub={onOpenCollectionHub}
       />
     );
   }
@@ -135,6 +146,7 @@ export default function ViewerContainer({
         onSelectFile={onSelectFile}
         onOpenCollectionHub={onOpenCollectionHub}
         onCloseFile={onCloseFile}
+        onNavigateHome={onNavigateHome}
       />
 
       {/* Enterprise Multi-Format High-Fidelity Viewer */}

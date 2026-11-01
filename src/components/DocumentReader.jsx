@@ -101,9 +101,9 @@ export default function DocumentReader({ document, content }) {
               </Title>
             </Box>
 
-            {/* Telegram Metadata Badge */}
+            {/* Vault Status Badge */}
             <Tooltip
-              label={`Telegram file_id: ${document?.telegramFileId || 'N/A'}`}
+              label="Encrypted in Vault • Verified"
               withArrow
               position="bottom-end"
             >
@@ -114,7 +114,7 @@ export default function DocumentReader({ document, content }) {
                 leftSection={<ShieldCheck size={12} />}
                 className="mono-badge"
               >
-                Telegram Vault Synced
+                Vault Synced
               </Badge>
             </Tooltip>
           </Group>

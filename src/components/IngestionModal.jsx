@@ -162,7 +162,7 @@ export default function IngestionModal({
               <Stack gap={4}>
                 <Group justify="space-between">
                   <Text size="xs" c="dimmed">
-                    Uploading & parsing to Telegram Vault...
+                    Uploading & encrypting into Vault...
                   </Text>
                   <Text size="xs" fw={600} c="blue">
                     {uploadProgress}%
@@ -199,7 +199,7 @@ export default function IngestionModal({
 
               <Alert color="blue" variant="light" radius="md">
                 <Text size="xs">
-                  💡 TeleDoc Hub will fetch the live export directly from Google and archive an encrypted snapshot into your Telegram Vault.
+                  💡 TeleDoc Hub will fetch the live export directly from Google and securely archive an encrypted snapshot into your Vault.
                 </Text>
               </Alert>
 

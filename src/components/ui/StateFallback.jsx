@@ -14,7 +14,7 @@ export default function StateFallback({
         <Stack align="center" gap="sm">
           <Loader size="md" color="blue" />
           <Text size="sm" c="dimmed">
-            {message || 'Loading from Telegram Vault...'}
+            {message || 'Loading document from vault...'}
           </Text>
         </Stack>
       </Center>

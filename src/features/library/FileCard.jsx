@@ -356,7 +356,7 @@ function FileCard({
                 )}
 
                 {isConfidential && (
-                  <Tooltip label="Zero-Knowledge AES-256 Vault Encrypted" withArrow position="top">
+                  <Tooltip label="AES-256 Encrypted" withArrow position="top">
                     <Box style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--brand-gold)', flexShrink: 0 }}>
                       <Lock size={11} />
                     </Box>
@@ -465,7 +465,7 @@ function FileCard({
               color="gray"
               onClick={(e) => {
                 e.stopPropagation();
-                if (window.confirm(`Delete "${targetDoc.title}" from MongoDB and Telegram?`)) {
+                if (window.confirm(`Permanently delete "${targetDoc.title}" from Vault?`)) {
                   onDelete && onDelete(targetDoc.id);
                 }
               }}

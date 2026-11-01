@@ -43,6 +43,8 @@ import {
   GripVertical,
   ArrowUpDown,
   AlertTriangle,
+  Home,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -73,6 +75,8 @@ export default function Sidebar({
   onDeleteCollection,
   onOpenUpload,
   onCollapseSidebar,
+  onNavigateHome,
+  isHome = false,
   status,
   statusLoading,
 }) {
@@ -86,6 +90,18 @@ export default function Sidebar({
   const [sortBy, setSortBy] = useState('newest'); // 'newest', 'oldest', 'name', 'size'
   const [confidentialOnly, setConfidentialOnly] = useState(false);
   const [viewMode, setViewMode] = useState('collections'); // 'collections' | 'groups' | 'flat'
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Active advanced filters counter
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (groupFilter !== 'all') count++;
+    if (yearFilter !== 'all') count++;
+    if (formatFilter !== 'all') count++;
+    if (sortBy !== 'newest') count++;
+    if (confidentialOnly) count++;
+    return count;
+  }, [groupFilter, yearFilter, formatFilter, sortBy, confidentialOnly]);
 
   // Reset flat list display count whenever filters or search change
   useEffect(() => {
@@ -278,16 +294,8 @@ export default function Sidebar({
     }
   };
 
-  // Auto-expand all groups by default
-  useEffect(() => {
-    if (Array.isArray(groups)) {
-      const initialGrp = {};
-      groups.forEach((g) => {
-        initialGrp[g.id] = true;
-      });
-      setExpandedGroups((prev) => ({ ...initialGrp, ...prev }));
-    }
-  }, [groups]);
+  // Groups are collapsed by default; user expands them on demand via chevron or header click
+  // (Auto-expand disabled per user requirement)
 
   // Scope counts
   const workDocCount = useMemo(() => documents.filter((d) => d.scope === 'professional').length, [documents]);
@@ -686,25 +694,38 @@ export default function Sidebar({
     >
       {/* Brand Header */}
       <Group justify="space-between" align="center">
-        <Group gap="xs">
-          <Box
-            className="brand-sparkle-box"
+        <Tooltip label="Go to Main Page" withArrow position="bottom-start">
+          <Group
+            gap="xs"
+            onClick={onNavigateHome}
             style={{
-              width: 34,
-              height: 34,
+              cursor: onNavigateHome ? 'pointer' : 'default',
+              userSelect: 'none',
+              borderRadius: '8px',
+              padding: '2px 4px',
+              transition: 'opacity 0.15s ease',
+              '&:hover': { opacity: 0.85 },
             }}
           >
-            <Sparkles size={18} color="#eedebd" />
-          </Box>
-          <Box>
-            <Text fw={700} size="md" style={{ letterSpacing: '-0.02em', lineHeight: 1.2, color: 'var(--brand-forest)' }}>
-              TeleDoc Hub
-            </Text>
-            <Text size="xs" style={{ color: 'var(--text-muted)' }}>
-              Vault • Collection Explorer
-            </Text>
-          </Box>
-        </Group>
+            <Box
+              className="brand-sparkle-box"
+              style={{
+                width: 34,
+                height: 34,
+              }}
+            >
+              <Sparkles size={18} color="#eedebd" />
+            </Box>
+            <Box>
+              <Text fw={700} size="md" style={{ letterSpacing: '-0.02em', lineHeight: 1.2, color: 'var(--brand-forest)' }}>
+                TeleDoc Hub
+              </Text>
+              <Text size="xs" style={{ color: 'var(--text-muted)' }}>
+                Vault • Collection Explorer
+              </Text>
+            </Box>
+          </Group>
+        </Tooltip>
 
         {onCollapseSidebar && (
           <Tooltip label="Collapse Sidebar (Ctrl+B)" withArrow position="bottom-end">
@@ -777,21 +798,8 @@ export default function Sidebar({
         </Paper>
       )}
 
-      {/* Scope Selector: All | Work | Personal */}
-      <SegmentedControl
-        size="xs"
-        radius="md"
-        value={scopeFilter}
-        onChange={setScopeFilter}
-        data={[
-          { label: `All (${documents.length} files)`, value: 'all' },
-          { label: `Work (${workDocCount})`, value: 'professional' },
-          { label: `Personal (${personalDocCount})`, value: 'personal' },
-        ]}
-      />
-
-      {/* View Mode & New Action Bar */}
-      <Group justify="space-between" align="center">
+      {/* 1. View Mode Switcher (Folders | Groups | Files) + Create Action */}
+      <Group justify="space-between" align="center" wrap="nowrap" gap={6}>
         <SegmentedControl
           size="xs"
           value={viewMode}
@@ -802,6 +810,17 @@ export default function Sidebar({
             { label: '📄 Files', value: 'flat' },
           ]}
           style={{ flex: 1 }}
+          styles={{
+            root: {
+              backgroundColor: 'rgba(24, 88, 68, 0.05)',
+              padding: '2px',
+            },
+            label: {
+              fontSize: '11px',
+              fontWeight: 600,
+              padding: '4px 6px',
+            },
+          }}
         />
 
         <Tooltip
@@ -816,8 +835,8 @@ export default function Sidebar({
           position="top"
         >
           <ActionIcon
-            size="28px"
-            radius="sm"
+            size="30px"
+            radius="md"
             variant="filled"
             color="emerald"
             className="btn-premium-primary"
@@ -826,184 +845,220 @@ export default function Sidebar({
               else if (viewMode === 'collections') setCreateModalOpen(true);
               else if (onOpenUpload) onOpenUpload();
             }}
+            style={{ flexShrink: 0 }}
           >
-            {viewMode === 'groups' ? <FolderKanban size={14} color="#eedebd" /> : <FolderPlus size={14} color="#eedebd" />}
+            {viewMode === 'groups' ? <FolderKanban size={15} color="#eedebd" /> : <FolderPlus size={15} color="#eedebd" />}
           </ActionIcon>
         </Tooltip>
       </Group>
 
-      {/* 1. High-Fidelity Search Bar with Hotkey */}
-      <SearchFilterInput
-        placeholder="Search title, content, tags..."
-        value={search}
-        onChange={setSearch}
-      />
-
-      {/* 2. Format Quick-Filter Pills */}
+      {/* 2. Scope Filter Pills: All | Work | Personal */}
       <SegmentedControl
         size="xs"
         radius="md"
-        value={formatFilter}
-        onChange={setFormatFilter}
+        value={scopeFilter}
+        onChange={setScopeFilter}
         data={[
-          { label: 'All', value: 'all' },
-          { label: `PDF${formatCounts.pdf ? ` (${formatCounts.pdf})` : ''}`, value: 'pdf' },
-          { label: `Word${formatCounts.word ? ` (${formatCounts.word})` : ''}`, value: 'word' },
-          { label: `Sheets${formatCounts.spreadsheet ? ` (${formatCounts.spreadsheet})` : ''}`, value: 'spreadsheet' },
-          { label: `Media${formatCounts.media ? ` (${formatCounts.media})` : ''}`, value: 'media' },
+          { label: `All (${documents.length})`, value: 'all' },
+          { label: `Work (${workDocCount})`, value: 'professional' },
+          { label: `Personal (${personalDocCount})`, value: 'personal' },
         ]}
         styles={{
           root: {
-            backgroundColor: 'rgba(24, 88, 68, 0.05)',
+            backgroundColor: 'var(--surface-card)',
+            border: '1px solid var(--border-subtle)',
             padding: '2px',
           },
           label: {
-            fontSize: '10.5px',
-            padding: '3px 6px',
+            fontSize: '11px',
             fontWeight: 500,
+            padding: '3px 6px',
           },
         }}
       />
 
-      {/* 3. Group & Timeline Filters (Row 1) */}
-      <Group gap="xs" grow>
-        {groups.length > 0 && (
-          <Select
-            size="xs"
-            placeholder="Group"
-            value={groupFilter}
-            onChange={(val) => setGroupFilter(val || 'all')}
-            data={[
-              { label: 'All Groups', value: 'all' },
-              ...availableGroups.map((g) => ({
-                label: g.label || g.name || '',
-                value: g.value || g.id || '',
-              })),
-            ]}
-            comboboxProps={{ position: 'bottom-start', withinPortal: true, shadow: 'md' }}
-            allowDeselect={false}
-            styles={{
-              input: {
-                fontSize: '11.5px',
-                fontWeight: 500,
-                height: '32px',
-                minHeight: '32px',
-                padding: '0 10px',
-                borderRadius: '8px',
-                borderColor: 'var(--border-subtle)',
-                backgroundColor: 'var(--surface-card)',
-                color: 'var(--text-primary)',
-              },
-              dropdown: { minWidth: '175px', width: 'max-content', padding: '4px' },
-              option: { fontSize: '12px', whiteSpace: 'nowrap', padding: '6px 12px' },
-            }}
+      {/* 3. Search Bar + Filter Toggle Action */}
+      <Group gap={6} wrap="nowrap" align="center">
+        <Box style={{ flex: 1, minWidth: 0 }}>
+          <SearchFilterInput
+            placeholder="Search title, content, tags..."
+            value={search}
+            onChange={setSearch}
           />
-        )}
+        </Box>
 
-        <Select
-          size="xs"
-          placeholder="Timeline"
-          value={yearFilter}
-          onChange={(val) => setYearFilter(val || 'all')}
-          data={[
-            { label: 'All Time', value: 'all' },
-            ...availableYears.map((y) => ({ label: y, value: y })),
-          ]}
-          comboboxProps={{ position: 'bottom-start', withinPortal: true, shadow: 'md' }}
-          allowDeselect={false}
-          styles={{
-            input: {
-              fontSize: '11.5px',
-              fontWeight: 500,
-              height: '32px',
-              minHeight: '32px',
-              padding: '0 10px',
-              borderRadius: '8px',
-              borderColor: 'var(--border-subtle)',
-              backgroundColor: 'var(--surface-card)',
-              color: 'var(--text-primary)',
-            },
-            dropdown: { minWidth: '160px', width: 'max-content', padding: '4px' },
-            option: { fontSize: '12px', whiteSpace: 'nowrap', padding: '6px 12px' },
-          }}
-        />
-      </Group>
-
-      {/* 4. Sort Engine & Confidential Mode (Row 2) */}
-      <Group gap="xs">
-        <Select
-          size="xs"
-          placeholder="Sort By"
-          value={sortBy}
-          leftSection={<ArrowUpDown size={13} style={{ color: 'var(--brand-emerald)' }} />}
-          onChange={(val) => setSortBy(val || 'newest')}
-          data={[
-            { label: 'Newest First (Date)', value: 'newest' },
-            { label: 'Oldest First (Date)', value: 'oldest' },
-            { label: 'Name (A - Z)', value: 'name' },
-            { label: 'File Size (Largest)', value: 'size' },
-            { label: 'Custom Drag Order', value: 'custom' },
-          ]}
-          comboboxProps={{ position: 'bottom-start', withinPortal: true, shadow: 'md' }}
-          allowDeselect={false}
-          style={{ flex: 1 }}
-          styles={{
-            input: {
-              fontSize: '11.5px',
-              fontWeight: 500,
-              height: '32px',
-              minHeight: '32px',
-              padding: '0 8px',
-              borderRadius: '8px',
-              borderColor: 'var(--border-subtle)',
-              backgroundColor: 'var(--surface-card)',
-              color: 'var(--text-primary)',
-            },
-            dropdown: { minWidth: '185px', width: 'max-content', padding: '4px', borderRadius: '8px' },
-            option: { fontSize: '12px', whiteSpace: 'nowrap', padding: '6px 12px', borderRadius: '6px' },
-          }}
-        />
-
-        <Tooltip
-          label={
-            confidentialOnly
-              ? 'Showing Confidential Only (Click to show all)'
-              : 'Filter Confidential Documents (AES-256)'
-          }
-          withArrow
-        >
+        <Tooltip label={showFilters ? 'Hide Filters' : 'Filter & Sort Options'} withArrow position="top">
           <ActionIcon
-            size="32px"
+            size="34px"
             radius="md"
-            variant={confidentialOnly ? 'filled' : 'subtle'}
+            variant={showFilters || activeFilterCount > 0 ? 'filled' : 'subtle'}
+            color={showFilters || activeFilterCount > 0 ? 'emerald' : 'gray'}
+            onClick={() => setShowFilters(!showFilters)}
             style={{
               flexShrink: 0,
-              backgroundColor: confidentialOnly ? '#ecfdf5' : 'var(--surface-card)',
-              color: confidentialOnly ? '#059669' : 'var(--text-secondary)',
-              border: confidentialOnly ? '1.5px solid #10b981' : '1px solid var(--border-subtle)',
-              boxShadow: confidentialOnly ? '0 0 0 2px rgba(16, 185, 129, 0.2)' : 'none',
-              transition: 'all 0.15s ease',
+              position: 'relative',
+              border: '1px solid var(--border-subtle)',
+              backgroundColor: showFilters || activeFilterCount > 0 ? 'var(--brand-primary)' : 'var(--surface-card)',
+              color: showFilters || activeFilterCount > 0 ? '#F2EBDD' : 'var(--text-secondary)',
+              boxShadow: activeFilterCount > 0 ? '0 0 0 2px rgba(16, 185, 129, 0.25)' : 'none',
             }}
-            onClick={() => setConfidentialOnly(!confidentialOnly)}
           >
-            <Lock size={14} />
+            <SlidersHorizontal size={15} />
+            {activeFilterCount > 0 && (
+              <Badge
+                size="xs"
+                circle
+                color="yellow"
+                style={{
+                  position: 'absolute',
+                  top: -3,
+                  right: -3,
+                  fontSize: '9px',
+                  height: 14,
+                  minWidth: 14,
+                  lineHeight: '14px',
+                  padding: 0,
+                }}
+              >
+                {activeFilterCount}
+              </Badge>
+            )}
           </ActionIcon>
         </Tooltip>
       </Group>
 
-      {/* 4. Active Filter Summary & Counter */}
-      <Group justify="space-between" px={2}>
-        <Text size="xs" c="dimmed" fw={500}>
-          {viewMode === 'collections'
-            ? `${groupedCollections.collectionsList.length} ${groupedCollections.collectionsList.length === 1 ? 'Folder' : 'Folders'} • ${filteredDocs.length} Total Files`
-            : viewMode === 'groups'
-            ? `${groups.length} ${groups.length === 1 ? 'Group' : 'Groups'} • ${filteredDocs.length} Total Files`
-            : `Showing ${filteredDocs.length} Files`}
-        </Text>
-        {(scopeFilter !== 'all' || groupFilter !== 'all' || yearFilter !== 'all' || formatFilter !== 'all' || sortBy !== 'newest' || confidentialOnly || search) && (
-          <Text
+      {/* 4. Collapsible Advanced Filters (Format, Timeline, Group, Sort, Confidential) */}
+      <Collapse in={showFilters}>
+        <Paper
+          p="xs"
+          radius="md"
+          withBorder
+          style={{
+            backgroundColor: 'var(--surface-card-warm)',
+            borderColor: 'var(--border-subtle)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
+          {/* Format Quick-Filter Pills */}
+          <SegmentedControl
             size="xs"
-            c="blue"
+            radius="md"
+            value={formatFilter}
+            onChange={setFormatFilter}
+            data={[
+              { label: 'All', value: 'all' },
+              { label: `PDF${formatCounts.pdf ? ` (${formatCounts.pdf})` : ''}`, value: 'pdf' },
+              { label: `Word${formatCounts.word ? ` (${formatCounts.word})` : ''}`, value: 'word' },
+              { label: `Sheets${formatCounts.spreadsheet ? ` (${formatCounts.spreadsheet})` : ''}`, value: 'spreadsheet' },
+              { label: `Media${formatCounts.media ? ` (${formatCounts.media})` : ''}`, value: 'media' },
+            ]}
+            styles={{
+              root: { backgroundColor: 'rgba(24, 88, 68, 0.05)', padding: '2px' },
+              label: { fontSize: '10px', padding: '2px 4px', fontWeight: 500 },
+            }}
+          />
+
+          {/* Group & Timeline Dropdowns */}
+          <Group gap="xs" grow>
+            {groups.length > 0 && (
+              <Select
+                size="xs"
+                placeholder="Group"
+                value={groupFilter}
+                onChange={(val) => setGroupFilter(val || 'all')}
+                data={[
+                  { label: 'All Groups', value: 'all' },
+                  ...availableGroups.map((g) => ({
+                    label: g.label || g.name || '',
+                    value: g.value || g.id || '',
+                  })),
+                ]}
+                comboboxProps={{ position: 'bottom-start', withinPortal: true, shadow: 'md' }}
+                allowDeselect={false}
+                styles={{
+                  input: { fontSize: '11px', height: '28px', minHeight: '28px', padding: '0 8px' },
+                  option: { fontSize: '11.5px', padding: '4px 8px' },
+                }}
+              />
+            )}
+
+            <Select
+              size="xs"
+              placeholder="Timeline"
+              value={yearFilter}
+              onChange={(val) => setYearFilter(val || 'all')}
+              data={[
+                { label: 'All Time', value: 'all' },
+                ...availableYears.map((y) => ({ label: y, value: y })),
+              ]}
+              comboboxProps={{ position: 'bottom-start', withinPortal: true, shadow: 'md' }}
+              allowDeselect={false}
+              styles={{
+                input: { fontSize: '11px', height: '28px', minHeight: '28px', padding: '0 8px' },
+                option: { fontSize: '11.5px', padding: '4px 8px' },
+              }}
+            />
+          </Group>
+
+          {/* Sort Engine & Confidential Mode */}
+          <Group gap="xs" wrap="nowrap">
+            <Select
+              size="xs"
+              placeholder="Sort By"
+              value={sortBy}
+              leftSection={<ArrowUpDown size={12} style={{ color: 'var(--brand-emerald)' }} />}
+              onChange={(val) => setSortBy(val || 'newest')}
+              data={[
+                { label: 'Newest First', value: 'newest' },
+                { label: 'Oldest First', value: 'oldest' },
+                { label: 'Name (A - Z)', value: 'name' },
+                { label: 'File Size', value: 'size' },
+                { label: 'Custom Order', value: 'custom' },
+              ]}
+              comboboxProps={{ position: 'bottom-start', withinPortal: true, shadow: 'md' }}
+              allowDeselect={false}
+              style={{ flex: 1 }}
+              styles={{
+                input: { fontSize: '11px', height: '28px', minHeight: '28px', padding: '0 6px' },
+                option: { fontSize: '11.5px', padding: '4px 8px' },
+              }}
+            />
+
+            <Tooltip label={confidentialOnly ? 'Confidential Only' : 'Filter Confidential (AES-256)'} withArrow>
+              <ActionIcon
+                size="28px"
+                radius="md"
+                variant={confidentialOnly ? 'filled' : 'subtle'}
+                style={{
+                  flexShrink: 0,
+                  backgroundColor: confidentialOnly ? '#ecfdf5' : 'var(--surface-card)',
+                  color: confidentialOnly ? '#059669' : 'var(--text-secondary)',
+                  border: confidentialOnly ? '1.5px solid #10b981' : '1px solid var(--border-subtle)',
+                }}
+                onClick={() => setConfidentialOnly(!confidentialOnly)}
+              >
+                <Lock size={13} />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
+        </Paper>
+      </Collapse>
+
+      {/* 5. Summary & Reset */}
+      <Group justify="space-between" px={2}>
+        <Text size="11px" c="dimmed" fw={500}>
+          {viewMode === 'collections'
+            ? `${groupedCollections.collectionsList.length} Folders • ${filteredDocs.length} Files`
+            : viewMode === 'groups'
+            ? `${groups.length} Groups • ${filteredDocs.length} Files`
+            : `${filteredDocs.length} Files`}
+        </Text>
+        {(scopeFilter !== 'all' || activeFilterCount > 0 || search) && (
+          <Text
+            size="11px"
+            c="emerald"
             fw={600}
             style={{ cursor: 'pointer' }}
             onClick={() => {
@@ -2350,7 +2405,7 @@ export default function Sidebar({
                               Permanently delete collection AND all {colFilesCount} file{colFilesCount === 1 ? '' : 's'}
                             </Text>
                           }
-                          description="Permanently deletes the folder AND completely destroys all files from Telegram Cloud Storage & database."
+                          description="Permanently deletes the folder and all files from Cloud Storage & database."
                         />
                       </Box>
                     </Stack>

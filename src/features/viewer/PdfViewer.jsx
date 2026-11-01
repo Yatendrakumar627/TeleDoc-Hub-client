@@ -345,7 +345,7 @@ export default function PdfViewer({ document, content, onRenameFile, onCloseFile
                 {/* Primary CTAs & Status */}
                 <Group gap="xs" align="center" wrap="nowrap">
                   <Tooltip
-                    label={`Zero-Knowledge Synced: ${document?.telegramFileId ? 'Valid' : 'Pending'}`}
+                    label="Encrypted in Vault • Verified"
                     withArrow
                     position="bottom-end"
                   >

@@ -433,7 +433,7 @@ export default function MediaBinaryViewer({
                 />
               )}
 
-              <Tooltip label="Decrypted in memory. Telegram file storage verified." withArrow>
+              <Tooltip label="Encrypted in Vault • Verified" withArrow>
                 <Badge
                   variant="light"
                   color="teal"
@@ -1230,7 +1230,7 @@ export default function MediaBinaryViewer({
                 {document.filename}
               </Title>
               <Text size="sm" c="dimmed">
-                Binary format (.{document.type?.toUpperCase()}) stored securely in Telegram Vault.
+                Binary format (.{document.type?.toUpperCase()}) stored securely in Cloud Vault.
               </Text>
               {document.checksumSha256 && (
                 <Text size="xs" c="dimmed" mt={4} className="mono-badge">

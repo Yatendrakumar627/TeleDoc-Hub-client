@@ -12,16 +12,14 @@ export default function TelegramStatusPill({ status, loading }) {
   }
 
   const isConnected = status?.telegram?.connected;
-  const botName = status?.telegram?.bot || 'Bot';
-  const channelName = status?.telegram?.channel || 'Storage Vault';
-  const chatId = status?.telegram?.chatId || '';
+  const channelName = status?.telegram?.channel || 'Cloud Storage';
 
   return (
     <Tooltip
       label={
         isConnected
-          ? `Connected to @${botName} in "${channelName}" (${chatId})`
-          : `Telegram connection error: ${status?.telegram?.error || 'Unavailable'}`
+          ? `Connected to ${channelName}`
+          : `Storage Offline: ${status?.telegram?.error || 'Unavailable'}`
       }
       withArrow
       position="bottom"
@@ -44,6 +42,10 @@ export default function TelegramStatusPill({ status, loading }) {
             paddingRight: 8,
             textTransform: 'none',
             fontWeight: 500,
+            maxWidth: 220,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
           },
         }}
       >

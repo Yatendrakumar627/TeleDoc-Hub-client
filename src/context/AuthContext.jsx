@@ -31,9 +31,16 @@ export function AuthProvider({ children }) {
         setToken(stored);
       } catch (err) {
         console.warn('Session verification failed:', err.message);
-        logoutUser();
-        setUser(null);
-        setToken(null);
+        // Only clear credentials if the backend explicitly rejected the token as 401 Unauthorized
+        // Do NOT log out the user on transient network glitches or server cold-start delays
+        if (err.response && err.response.status === 401) {
+          logoutUser();
+          setUser(null);
+          setToken(null);
+        } else {
+          // Preserve token for offline/reconnecting state
+          setToken(stored);
+        }
       } finally {
         setLoading(false);
       }

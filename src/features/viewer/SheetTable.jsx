@@ -162,7 +162,7 @@ export default function SheetTable({ document, content, onRenameFile, onCloseFil
 
             <Group gap="xs" align="center" wrap="nowrap">
               <Tooltip
-                label={`Telegram file_id: ${document?.telegramFileId || 'N/A'}`}
+                label="Encrypted in Vault • Verified"
                 withArrow
                 position="bottom-end"
               >

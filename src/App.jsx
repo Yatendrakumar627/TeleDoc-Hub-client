@@ -141,6 +141,16 @@ function VaultWorkspace() {
     closeDocument();
   };
 
+  // Handle returning directly to Main Page (Vault Command Center / Dashboard)
+  const handleNavigateHome = () => {
+    closeDocument();
+    setIsViewingCollectionHub(false);
+    setIsViewingGroupHub(false);
+    setSelectedCollection(null);
+  };
+
+  const isHome = !selectedDocId && !isViewingCollectionHub && !isViewingGroupHub;
+
   // Keyboard shortcut: Press Escape (Esc) on PC to close active document & return to folder view
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -240,7 +250,7 @@ function VaultWorkspace() {
       notifications.show({
         title: 'Collection Deleted',
         message: cascade
-          ? 'Collection and all associated files deleted from database and Telegram.'
+          ? 'Collection and all associated files deleted from Vault.'
           : 'Collection deleted. Files moved to Inbox.',
         color: 'gray',
       });
@@ -424,7 +434,7 @@ function VaultWorkspace() {
       setCollectionsVersion((v) => v + 1);
       notifications.show({
         title: 'Files Deleted',
-        message: `Permanently removed ${res.deletedCount || docIds.length} file(s) from database and Telegram.`,
+        message: `Permanently removed ${res.deletedCount || docIds.length} file(s) from Vault.`,
         color: 'gray',
       });
       return res;
@@ -473,6 +483,8 @@ function VaultWorkspace() {
           onUpdateCollection: handleUpdateCollection,
           onDeleteCollection: handleDeleteCollection,
           onOpenUpload: handleOpenUpload,
+          onNavigateHome: handleNavigateHome,
+          isHome,
           status,
           statusLoading,
         }}
@@ -480,6 +492,8 @@ function VaultWorkspace() {
           onOpenUploadModal: () => handleOpenUpload(null),
           onIngestGoogleLink: ingestLink,
           isIngesting: isProcessing,
+          onNavigateHome: handleNavigateHome,
+          isHome,
         }}
       >
         <ViewerContainer
@@ -489,6 +503,8 @@ function VaultWorkspace() {
           collection={selectedCollection}
           collectionFiles={activeCollectionFiles}
           allDocuments={documents}
+          groups={groups}
+          status={status}
           isViewingCollectionHub={isViewingCollectionHub}
           group={currentGroup}
           isViewingGroupHub={isViewingGroupHub}
@@ -507,6 +523,7 @@ function VaultWorkspace() {
           onBatchMoveFiles={handleBatchMoveDocs}
           onBatchDeleteFiles={handleBatchDeleteDocs}
           onCloseFile={handleCloseDoc}
+          onNavigateHome={handleNavigateHome}
           isProcessing={isProcessing}
         />
       </WorkspaceLayout>

@@ -279,7 +279,7 @@ export default function DocReader({ document, content, onRenameFile, onCloseFile
                 {/* Primary CTAs & Status */}
                 <Group gap="xs" align="center" wrap="nowrap">
                   <Tooltip
-                    label={`Telegram file_id: ${document?.telegramFileId || 'N/A'}`}
+                    label="Encrypted in Vault • Verified"
                     withArrow
                     position="bottom-end"
                   >

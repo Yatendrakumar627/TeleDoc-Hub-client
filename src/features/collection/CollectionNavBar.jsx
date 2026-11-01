@@ -1,7 +1,7 @@
 import React from 'react';
 import { Paper, Group, Text, Button, ActionIcon, Tooltip, ScrollArea, Box, Badge } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
-import { ChevronLeft, ChevronRight, Folder, Grid, FileText, X, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Folder, Grid, FileText, X, ArrowLeft, Home } from 'lucide-react';
 import { getDocTypeMeta } from '../../utils/docTypes';
 
 export default function CollectionNavBar({
@@ -11,6 +11,7 @@ export default function CollectionNavBar({
   onSelectFile,
   onOpenCollectionHub,
   onCloseFile,
+  onNavigateHome,
 }) {
   const isMobile = useMediaQuery('(max-width: 768px)');
 
@@ -36,8 +37,29 @@ export default function CollectionNavBar({
       }}
     >
       <Group justify="space-between" align="center" wrap="nowrap">
-        {/* Left: Collection Name & Back to Collection Grid */}
+        {/* Left: Main Page Jump + Collection Name & Back to Collection Grid */}
         <Group gap="xs" wrap="nowrap">
+          {onNavigateHome && (
+            <Tooltip label="Go to Main Page" withArrow position="bottom-start">
+              <ActionIcon
+                variant="subtle"
+                size="sm"
+                color="gray"
+                onClick={onNavigateHome}
+                style={{
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '6px',
+                  backgroundColor: '#ffffff',
+                  color: 'var(--brand-primary)',
+                  height: 30,
+                  width: 30,
+                }}
+              >
+                <Home size={15} />
+              </ActionIcon>
+            </Tooltip>
+          )}
+
           <Tooltip label="View all files in this collection" withArrow>
             <Button
               variant="light"

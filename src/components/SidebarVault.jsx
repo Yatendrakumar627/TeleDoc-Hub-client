@@ -247,7 +247,7 @@ export default function SidebarVault({
                         color="gray"
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (window.confirm(`Delete "${doc.title}" from Telegram Vault?`)) {
+                          if (window.confirm(`Permanently delete "${doc.title}" from Vault?`)) {
                             onDeleteDoc(doc.id);
                           }
                         }}

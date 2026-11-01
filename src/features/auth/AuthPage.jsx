@@ -105,7 +105,7 @@ export default function AuthPage() {
             TeleDoc Vault
           </Title>
           <Text size="sm" c="dimmed" ta="center">
-            Zero-Knowledge Encrypted Storage on Telegram + MongoDB
+            Zero-Knowledge Encrypted Cloud Storage
           </Text>
 
           <Group gap="xs" mt={4}>
@@ -261,10 +261,10 @@ export default function AuthPage() {
               <Cloud size={14} color="#34d399" />
             </Group>
             <Text size="10px" fw={600} c="gray.3">
-              Telegram Storage
+              Cloud Storage
             </Text>
             <Text size="9px" c="dimmed">
-              Unlimited Blobs
+              Encrypted Storage
             </Text>
           </Paper>
 
@@ -273,10 +273,10 @@ export default function AuthPage() {
               <Database size={14} color="#a78bfa" />
             </Group>
             <Text size="10px" fw={600} c="gray.3">
-              MongoDB Brain
+              Metadata Engine
             </Text>
             <Text size="9px" c="dimmed">
-              Isolated Indexing
+              Instant Indexing
             </Text>
           </Paper>
         </SimpleGrid>

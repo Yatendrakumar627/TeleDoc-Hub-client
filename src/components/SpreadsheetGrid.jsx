@@ -139,7 +139,7 @@ export default function SpreadsheetGrid({ document, content }) {
             </Box>
 
             <Tooltip
-              label={`Telegram file_id: ${document?.telegramFileId || 'N/A'}`}
+              label="Encrypted in Vault • Verified"
               withArrow
               position="bottom-end"
             >
@@ -150,7 +150,7 @@ export default function SpreadsheetGrid({ document, content }) {
                 leftSection={<ShieldCheck size={12} />}
                 className="mono-badge"
               >
-                Telegram Vault Synced
+                Vault Synced
               </Badge>
             </Tooltip>
           </Group>

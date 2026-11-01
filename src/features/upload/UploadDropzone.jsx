@@ -55,7 +55,7 @@ export default function UploadDropzone({
         <Stack gap={4}>
           <Group justify="space-between">
             <Text size="xs" c="dimmed">
-              {statusText || 'Smart-compressing & encrypting into Telegram Vault...'}
+              {statusText || 'Encrypting and uploading to vault...'}
             </Text>
             {uploadProgress > 0 && (
               <Text size="xs" fw={600} c="emerald">

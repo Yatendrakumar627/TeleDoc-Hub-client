@@ -43,6 +43,8 @@ import {
   FolderInput,
   X,
   Check,
+  Home,
+  ChevronRight,
 } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
 import SourceBadge from '../../components/ui/SourceBadge';
@@ -213,6 +215,7 @@ export default function CollectionHubView({
   onDeleteCollection,
   onBatchMoveFiles,
   onBatchDeleteFiles,
+  onNavigateHome,
 }) {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -485,6 +488,33 @@ export default function CollectionHubView({
 
   return (
     <Box p={isMobile ? 'xs' : 'lg'} style={{ maxWidth: 1040, margin: '0 auto', width: '100%' }}>
+      {/* 1-Click Back to Main Page Breadcrumb Navigation */}
+      {onNavigateHome && (
+        <Group gap={6} mb="sm" align="center">
+          <Button
+            variant="subtle"
+            size="xs"
+            leftSection={<Home size={14} />}
+            onClick={onNavigateHome}
+            style={{
+              padding: '0 8px',
+              height: '28px',
+              color: 'var(--brand-primary)',
+              fontWeight: 600,
+              fontSize: '12px',
+              borderRadius: '6px',
+              backgroundColor: 'rgba(24, 88, 68, 0.06)',
+            }}
+          >
+            Main Page
+          </Button>
+          <ChevronRight size={14} color="#94a3b8" />
+          <Text size="xs" fw={700} style={{ color: 'var(--brand-forest)' }}>
+            {collection?.name || 'Collection'}
+          </Text>
+        </Group>
+      )}
+
       {/* Collection Hero Header */}
       <Paper p={isMobile ? 'sm' : 'lg'} radius="md" withBorder mb="lg" style={{ backgroundColor: '#ffffff', boxShadow: 'var(--shadow-card)' }}>
         <Stack gap="sm">
@@ -534,7 +564,7 @@ export default function CollectionHubView({
                   {collection?.name || 'Collection'}
                 </Title>
                 <Text size="xs" c="dimmed" mt={2}>
-                  Total archive size: {formatBytes(totalBytes)} • Stored individually in Telegram Vault
+                  Total archive size: {formatBytes(totalBytes)} • Encrypted Cloud Storage
                 </Text>
               </Box>
             </Group>
@@ -1389,7 +1419,7 @@ export default function CollectionHubView({
                           Permanently delete collection AND all {files.length} file{files.length === 1 ? '' : 's'}
                         </Text>
                       }
-                      description="Permanently deletes the folder AND destroys all files from Telegram Cloud Storage & database."
+                      description="Permanently deletes the folder and all files from Cloud Storage & database."
                     />
                   </Box>
                 </Stack>
@@ -1581,11 +1611,11 @@ export default function CollectionHubView({
         <Stack gap="md">
           <Paper p="sm" radius="md" withBorder style={{ backgroundColor: '#fef2f2', borderColor: '#fca5a5' }}>
             <Text size="sm" fw={600} c="red" mb={4}>
-              Permanent Database & Telegram Storage Removal
+              Permanent Cloud Storage & Database Removal
             </Text>
             <Text size="xs" style={{ color: '#991b1b', lineHeight: 1.5 }}>
               Are you sure you want to permanently delete these <strong>{selectedFileIds.length} file{selectedFileIds.length === 1 ? '' : 's'}</strong> ({formatBytes(selectedBytes)})?
-              This will erase them from MongoDB database and destroy their encrypted blobs on Telegram. This action cannot be undone.
+              This will permanently delete the selected files from storage and the database. This action cannot be undone.
             </Text>
           </Paper>
 
