@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Paper, Group, Box, Text, ActionIcon, Tooltip, Menu, TextInput, Badge } from '@mantine/core';
+import { Paper, Group, Box, Text, ActionIcon, Tooltip, Menu, TextInput, Badge, Checkbox } from '@mantine/core';
 import { Trash2, Lock, FolderInput, Folder, Pencil, Check, X, FileText } from 'lucide-react';
 import { formatBytes } from '../../utils/formatters';
 import { getDocTypeMeta } from '../../utils/docTypes';
@@ -166,6 +166,8 @@ function FileCard({
   onDelete,
   onRename,
   onAssignCollection,
+  isMultiSelected = false,
+  onToggleSelect,
 }) {
   const targetDoc = document || doc;
   const [isEditing, setIsEditing] = useState(false);
@@ -233,10 +235,22 @@ function FileCard({
       withBorder
       style={{
         cursor: 'pointer',
-        borderColor: isSelected ? 'var(--brand-primary)' : 'var(--border-subtle, #e2e8f0)',
-        borderLeft: `3px solid ${meta.accentColor || 'var(--brand-primary)'}`,
-        backgroundColor: isSelected ? 'var(--surface-selected)' : '#ffffff',
-        boxShadow: isSelected ? '0 2px 8px rgba(24, 88, 68, 0.12)' : '0 1px 3px rgba(16, 47, 39, 0.03)',
+        borderColor: isMultiSelected
+          ? 'var(--brand-emerald)'
+          : isSelected
+          ? 'var(--brand-primary)'
+          : 'var(--border-subtle, #e2e8f0)',
+        borderLeft: `3px solid ${isMultiSelected ? 'var(--brand-emerald)' : meta.accentColor || 'var(--brand-primary)'}`,
+        backgroundColor: isMultiSelected
+          ? '#f0fdf4'
+          : isSelected
+          ? 'var(--surface-selected)'
+          : '#ffffff',
+        boxShadow: isMultiSelected
+          ? '0 0 0 1px var(--brand-emerald), 0 2px 8px rgba(16, 185, 129, 0.12)'
+          : isSelected
+          ? '0 2px 8px rgba(24, 88, 68, 0.12)'
+          : '0 1px 3px rgba(16, 47, 39, 0.03)',
         borderRadius: '9px',
         transition: 'all 0.15s ease-in-out',
       }}
@@ -244,6 +258,29 @@ function FileCard({
     >
       <Group justify="space-between" wrap="nowrap" align="center">
         <Group gap={9} wrap="nowrap" style={{ overflow: 'hidden', flex: 1, minWidth: 0 }}>
+          {onToggleSelect && (
+            <Box
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleSelect(targetDoc.id);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              <Checkbox
+                size="xs"
+                color="emerald"
+                checked={isMultiSelected}
+                onChange={() => {}}
+                styles={{ input: { cursor: 'pointer' } }}
+              />
+            </Box>
+          )}
+
           {/* Authentic Document Brand Icon */}
           <DocumentBrandIcon
             type={targetDoc.type}

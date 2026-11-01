@@ -19,6 +19,7 @@ import {
   Radio,
   Divider,
   Menu,
+  Checkbox,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import {
@@ -39,13 +40,16 @@ import {
   Link as LinkIcon,
   MoreVertical,
   ExternalLink,
+  FolderInput,
+  X,
+  Check,
 } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
 import SourceBadge from '../../components/ui/SourceBadge';
 import { formatBytes, extractDateFromName } from '../../utils/formatters';
 import { getDocTypeMeta } from '../../utils/docTypes';
 import { API_BASE_URL } from '../../config';
-import { reorderDocuments } from '../../services/apiClient';
+import { reorderDocuments, getCollections } from '../../services/apiClient';
 
 /**
  * Authentic Document Brand Icon (Word, PDF, Excel, PPT, Media)
@@ -207,10 +211,20 @@ export default function CollectionHubView({
   onOpenUpload,
   onUpdateCollection,
   onDeleteCollection,
+  onBatchMoveFiles,
+  onBatchDeleteFiles,
 }) {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+
+  // Multi-Selection State for Batch Operations
+  const [selectedFileIds, setSelectedFileIds] = useState([]);
+  const [batchMoveModalOpen, setBatchMoveModalOpen] = useState(false);
+  const [targetMoveCollectionId, setTargetMoveCollectionId] = useState('');
+  const [availableCollections, setAvailableCollections] = useState([]);
+  const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
+  const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
 
   // Sorting and Dragging State
   const [fileSortBy, setFileSortBy] = useState('date-desc'); // 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'custom'
@@ -223,6 +237,22 @@ export default function CollectionHubView({
   useEffect(() => {
     setOrderedFiles(files);
   }, [files]);
+
+  // Clear selection if collection context changes
+  useEffect(() => {
+    setSelectedFileIds([]);
+  }, [collection?.id]);
+
+  // Esc keyboard shortcut to clear selection
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && selectedFileIds.length > 0 && !batchMoveModalOpen && !batchDeleteModalOpen) {
+        setSelectedFileIds([]);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedFileIds.length, batchMoveModalOpen, batchDeleteModalOpen]);
 
   const [collectionDisplayLimit, setCollectionDisplayLimit] = useState(36);
 
@@ -386,6 +416,73 @@ export default function CollectionHubView({
     }
   };
 
+  // Batch Selection Handlers
+  const handleToggleSelect = (fileId) => {
+    setSelectedFileIds((prev) =>
+      prev.includes(fileId) ? prev.filter((id) => id !== fileId) : [...prev, fileId]
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedFileIds.length === displayedFilesWithMeta.length) {
+      setSelectedFileIds([]);
+    } else {
+      setSelectedFileIds(displayedFilesWithMeta.map((f) => f.id));
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedFileIds([]);
+  };
+
+  const handleOpenBatchMove = async () => {
+    try {
+      const allCols = await getCollections('all');
+      setAvailableCollections(allCols.filter((c) => c.id !== collection?.id));
+    } catch (err) {
+      console.warn('Failed to fetch collections for batch move:', err);
+    }
+    setTargetMoveCollectionId('');
+    setBatchMoveModalOpen(true);
+  };
+
+  const handleConfirmBatchMove = async () => {
+    if (selectedFileIds.length === 0 || !onBatchMoveFiles) return;
+    try {
+      setIsSubmittingBatch(true);
+      await onBatchMoveFiles(selectedFileIds, targetMoveCollectionId || null);
+      setSelectedFileIds([]);
+      setBatchMoveModalOpen(false);
+    } catch (err) {
+      console.error('Batch move error:', err);
+    } finally {
+      setIsSubmittingBatch(false);
+    }
+  };
+
+  const handleConfirmBatchDelete = async () => {
+    if (selectedFileIds.length === 0 || !onBatchDeleteFiles) return;
+    try {
+      setIsSubmittingBatch(true);
+      await onBatchDeleteFiles(selectedFileIds);
+      setSelectedFileIds([]);
+      setBatchDeleteModalOpen(false);
+    } catch (err) {
+      console.error('Batch delete error:', err);
+    } finally {
+      setIsSubmittingBatch(false);
+    }
+  };
+
+  const selectedFiles = useMemo(() => {
+    const idSet = new Set(selectedFileIds);
+    return files.filter((f) => idSet.has(f.id));
+  }, [files, selectedFileIds]);
+
+  const selectedBytes = useMemo(() => {
+    return selectedFiles.reduce((acc, f) => acc + (f.fileSize || 0), 0);
+  }, [selectedFiles]);
+
   return (
     <Box p={isMobile ? 'xs' : 'lg'} style={{ maxWidth: 1040, margin: '0 auto', width: '100%' }}>
       {/* Collection Hero Header */}
@@ -398,11 +495,12 @@ export default function CollectionHubView({
                   width: isMobile ? 38 : 44,
                   height: isMobile ? 38 : 44,
                   borderRadius: 10,
-                  backgroundColor: isPersonal ? '#fdf2f8' : '#e0f2fe',
+                  backgroundColor: isPersonal ? '#ecfdf5' : '#e0f2fe',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: isPersonal ? '#db2777' : '#0284c7',
+                  color: isPersonal ? '#059669' : '#0284c7',
+                  border: isPersonal ? '1px solid #a7f3d0' : '1px solid #bae6fd',
                 }}
               >
                 <Folder size={isMobile ? 20 : 24} />
@@ -410,7 +508,18 @@ export default function CollectionHubView({
 
               <Box style={{ flex: 1, minWidth: 0 }}>
                 <Group gap="xs" mb={4} wrap="wrap">
-                  <Badge color={isPersonal ? 'grape' : 'cyan'} variant="outline" size="xs">
+                  <Badge
+                    color={isPersonal ? 'emerald' : 'blue'}
+                    variant="light"
+                    size="xs"
+                    style={{
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      backgroundColor: isPersonal ? '#ecfdf5' : '#eff6ff',
+                      color: isPersonal ? '#047857' : '#1d4ed8',
+                      border: isPersonal ? '1px solid #a7f3d0' : '1px solid #bfdbfe',
+                    }}
+                  >
                     {isPersonal ? 'Personal Vault' : 'Work Collection'}
                   </Badge>
                   <Badge color="blue" variant="light" size="xs">
@@ -481,9 +590,9 @@ export default function CollectionHubView({
         </Stack>
       </Paper>
 
-      {/* Files Grid Header with Sorting and Drag Indicators */}
+      {/* Files Grid Header with Selection, Sorting and Indicators */}
       <Group justify="space-between" align="center" mb="md" px={4} wrap="wrap" gap="xs">
-        <Group gap="xs">
+        <Group gap="xs" align="center">
           <Text fw={700} size="xs" tt="uppercase" style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>
             Files in this collection ({files.length})
           </Text>
@@ -492,38 +601,65 @@ export default function CollectionHubView({
               Custom Drag Order
             </Badge>
           )}
+          {selectedFileIds.length > 0 && (
+            <Badge size="xs" variant="filled" color="emerald">
+              {selectedFileIds.length} Selected
+            </Badge>
+          )}
         </Group>
 
-        <Box style={{ width: isMobile ? '100%' : 'auto' }}>
-          <Select
-            size="xs"
-            leftSection={<ArrowUpDown size={13} style={{ color: 'var(--text-tertiary)' }} />}
-            value={fileSortBy}
-            onChange={(val) => setFileSortBy(val || 'date-desc')}
-            data={[
-              { label: 'Date: Newest First', value: 'date-desc' },
-              { label: 'Date: Oldest First', value: 'date-asc' },
-              { label: 'Name (A - Z)', value: 'name-asc' },
-              { label: 'Name (Z - A)', value: 'name-desc' },
-              { label: 'Custom (Draggable)', value: 'custom' },
-            ]}
-            comboboxProps={{ width: isMobile ? '100%' : 185, withinPortal: true, shadow: 'md' }}
-            style={{ width: isMobile ? '100%' : 185 }}
-            styles={{
-              input: {
-                height: 32,
-                minHeight: 32,
-                fontSize: '12px',
-                fontWeight: 500,
-                borderRadius: '8px',
-                borderColor: 'var(--border-subtle)',
-                backgroundColor: 'var(--surface-card)',
-                color: 'var(--text-primary)',
-              },
-              option: { fontSize: '12px', whiteSpace: 'nowrap' },
-            }}
-          />
-        </Box>
+        <Group gap="sm" align="center" wrap="nowrap" style={{ width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-end' }}>
+          {files.length > 0 && (
+            <Checkbox
+              size="xs"
+              color="emerald"
+              label={
+                displayedFilesWithMeta.length > 0 && selectedFileIds.length === displayedFilesWithMeta.length
+                  ? 'Deselect All'
+                  : 'Select All'
+              }
+              checked={displayedFilesWithMeta.length > 0 && selectedFileIds.length === displayedFilesWithMeta.length}
+              indeterminate={selectedFileIds.length > 0 && selectedFileIds.length < displayedFilesWithMeta.length}
+              onChange={handleToggleSelectAll}
+              styles={{
+                label: { fontSize: '12px', fontWeight: 600, cursor: 'pointer', color: selectedFileIds.length > 0 ? 'var(--brand-emerald)' : 'var(--text-secondary)' },
+                input: { cursor: 'pointer' },
+              }}
+            />
+          )}
+
+          <Box style={{ width: isMobile ? 'auto' : 195, flex: isMobile ? 1 : 'none' }}>
+            <Select
+              size="xs"
+              leftSection={<ArrowUpDown size={13} style={{ color: 'var(--brand-emerald)' }} />}
+              value={fileSortBy}
+              onChange={(val) => setFileSortBy(val || 'date-desc')}
+              data={[
+                { label: 'Newest First (Date)', value: 'date-desc' },
+                { label: 'Oldest First (Date)', value: 'date-asc' },
+                { label: 'Name (A - Z)', value: 'name-asc' },
+                { label: 'Name (Z - A)', value: 'name-desc' },
+                { label: 'Custom Drag Order', value: 'custom' },
+              ]}
+              comboboxProps={{ width: isMobile ? '100%' : 195, withinPortal: true, shadow: 'md' }}
+              style={{ width: '100%' }}
+              styles={{
+                input: {
+                  height: 32,
+                  minHeight: 32,
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  borderRadius: '8px',
+                  borderColor: 'var(--border-subtle)',
+                  backgroundColor: 'var(--surface-card)',
+                  color: 'var(--text-primary)',
+                },
+                dropdown: { borderRadius: '8px', padding: '4px' },
+                option: { fontSize: '12px', whiteSpace: 'nowrap', borderRadius: '6px' },
+              }}
+            />
+          </Box>
+        </Group>
       </Group>
 
       {/* Grid of Individual Files */}
@@ -557,6 +693,7 @@ export default function CollectionHubView({
             const isDragging = draggedFileId === file.id;
             const isDropBefore = dropTargetFileId === file.id && dropPosition === 'before';
             const isDropAfter = dropTargetFileId === file.id && dropPosition === 'after';
+            const isSelected = selectedFileIds.includes(file.id);
 
             const { formattedFileDate, addedDateFormatted, extLabel } = file;
 
@@ -568,7 +705,7 @@ export default function CollectionHubView({
                 withBorder
                 draggable={true}
                 onDragStart={(e) => {
-                  if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.mantine-Menu-dropdown')) {
+                  if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.mantine-Menu-dropdown') || e.target.closest('.mantine-Checkbox-root')) {
                     e.preventDefault();
                     return;
                   }
@@ -609,13 +746,16 @@ export default function CollectionHubView({
                 style={{
                   position: 'relative',
                   cursor: 'pointer',
-                  backgroundColor: '#ffffff',
-                  borderColor: isDragging ? 'var(--brand-emerald)' : '#e2e8f0',
+                  backgroundColor: isSelected ? '#f0fdf4' : '#ffffff',
+                  borderColor: isSelected ? 'var(--brand-emerald)' : isDragging ? 'var(--brand-emerald)' : '#e2e8f0',
+                  borderWidth: isSelected ? '1.5px' : '1px',
                   borderRadius: '14px',
                   borderStyle: isDragging ? 'dashed' : 'solid',
                   opacity: isDragging ? 0.35 : 1,
                   transform: isDragging ? 'scale(0.98)' : 'none',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)',
+                  boxShadow: isSelected
+                    ? '0 0 0 1px var(--brand-emerald), 0 6px 16px rgba(16, 185, 129, 0.15)'
+                    : '0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02)',
                   overflow: 'visible',
                   transition: 'all 0.16s ease-in-out',
                   display: 'flex',
@@ -665,9 +805,36 @@ export default function CollectionHubView({
                 )}
 
                 <div>
-                  {/* Top Row: Brand Icon + Title + Format Pill ... Quick Action Bar */}
+                  {/* Top Row: Selection Checkbox + Drag Handle + Brand Icon + Title + Format Pill ... Quick Action Bar */}
                   <Group justify="space-between" align="flex-start" wrap="nowrap" mb={8}>
                     <Group gap={8} align="center" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+                      {/* Selection Checkbox */}
+                      <Tooltip label={isSelected ? 'Deselect file' : 'Select file for batch move / delete'} position="top" withArrow openDelay={400}>
+                        <Box
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleSelect(file.id);
+                          }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            padding: '2px',
+                            borderRadius: '4px',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Checkbox
+                            size="xs"
+                            color="emerald"
+                            checked={isSelected}
+                            onChange={() => {}} // handled by parent onClick
+                            styles={{ input: { cursor: 'pointer' } }}
+                          />
+                        </Box>
+                      </Tooltip>
+
                       {/* Drag Handle */}
                       <Tooltip label="Drag to reorder" position="top" withArrow openDelay={350}>
                         <Box
@@ -740,11 +907,11 @@ export default function CollectionHubView({
                     {/* Quick Action Icons:
                         On Mobile: We show Download + More (Menu has Copy Link, Open, Delete).
                         On Desktop: We show Download, Copy Link, More, Delete. */}
-                    <Group gap={4} wrap="nowrap" style={{ flexShrink: 0 }}>
+                    <Group gap={isMobile ? 6 : 4} wrap="nowrap" style={{ flexShrink: 0 }}>
                       {/* 1. Download File */}
                       <Tooltip label="Download File" withArrow position="top">
                         <ActionIcon
-                          size="28px"
+                          size={isMobile ? '34px' : '28px'}
                           radius="md"
                           variant="subtle"
                           component="a"
@@ -753,13 +920,13 @@ export default function CollectionHubView({
                           onClick={(e) => e.stopPropagation()}
                           style={{
                             backgroundColor: '#f8fafc',
-                            border: '1px solid #f1f5f9',
+                            border: '1px solid #e2e8f0',
                             color: '#475569',
                             borderRadius: '8px',
                             transition: 'all 0.15s ease',
                           }}
                         >
-                          <Download size={13} />
+                          <Download size={isMobile ? 15 : 13} />
                         </ActionIcon>
                       </Tooltip>
 
@@ -799,23 +966,31 @@ export default function CollectionHubView({
                         <Menu.Target>
                           <Tooltip label="More Options" withArrow position="top">
                             <ActionIcon
-                              size="28px"
+                              size={isMobile ? '34px' : '28px'}
                               radius="md"
                               variant="subtle"
                               onClick={(e) => e.stopPropagation()}
                               style={{
                                 backgroundColor: '#f8fafc',
-                                border: '1px solid #f1f5f9',
+                                border: '1px solid #e2e8f0',
                                 color: '#475569',
                                 borderRadius: '8px',
                                 transition: 'all 0.15s ease',
                               }}
                             >
-                              <MoreVertical size={13} />
+                              <MoreVertical size={isMobile ? 15 : 13} />
                             </ActionIcon>
                           </Tooltip>
                         </Menu.Target>
-                        <Menu.Dropdown onClick={(e) => e.stopPropagation()}>
+                        <Menu.Dropdown
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            borderRadius: '10px',
+                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
+                            border: '1px solid #e2e8f0',
+                            padding: '5px',
+                          }}
+                        >
                           <Menu.Item leftSection={<ExternalLink size={13} />} onClick={() => onSelectFile(file.id)}>
                             Open File Viewer
                           </Menu.Item>
@@ -1143,42 +1318,92 @@ export default function CollectionHubView({
       <Modal
         opened={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}
-        title="Delete Collection"
+        title={
+          <Group gap="xs">
+            <AlertTriangle size={18} color="#dc2626" />
+            <Text fw={700} c="red" size="sm">
+              Delete Collection
+            </Text>
+          </Group>
+        }
         size="md"
         radius="md"
       >
         <Stack gap="md">
-          <Group gap="xs" align="flex-start">
-            <AlertTriangle size={24} color="#dc2626" />
-            <Box style={{ flex: 1 }}>
-              <Text size="sm" fw={600}>
-                Are you sure you want to delete "{collection?.name}"?
-              </Text>
+          <Box>
+            <Text size="sm" fw={600} style={{ color: 'var(--brand-forest)' }}>
+              Are you sure you want to delete collection "{collection?.name}"?
+            </Text>
+            <Text size="xs" c="dimmed" mt={3}>
+              {files.length > 0
+                ? `This collection currently contains ${files.length} file${files.length === 1 ? '' : 's'}. Choose what happens to the files:`
+                : 'This collection is empty. Deleting it will permanently remove the folder.'}
+            </Text>
+          </Box>
+
+          {files.length > 0 ? (
+            <Paper p="xs" withBorder radius="md" style={{ backgroundColor: '#fcfbfa' }}>
+              <Radio.Group value={deleteCascade} onChange={setDeleteCascade}>
+                <Stack gap="xs">
+                  {/* Option 1: Move to Inbox (Safe) */}
+                  <Box
+                    p="xs"
+                    style={{
+                      borderRadius: '8px',
+                      backgroundColor: deleteCascade === 'false' ? '#f0fdf4' : '#ffffff',
+                      border: deleteCascade === 'false' ? '1px solid #86efac' : '1px solid var(--border-subtle)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onClick={() => setDeleteCascade('false')}
+                  >
+                    <Radio
+                      value="false"
+                      color="emerald"
+                      label={
+                        <Text fw={600} size="xs" style={{ color: '#166534' }}>
+                          Move {files.length} file{files.length === 1 ? '' : 's'} to Inbox (Keep safe)
+                        </Text>
+                      }
+                      description="Deletes this collection folder, but safely keeps all files in your unassigned library."
+                    />
+                  </Box>
+
+                  {/* Option 2: Delete files with collection (Permanent) */}
+                  <Box
+                    p="xs"
+                    style={{
+                      borderRadius: '8px',
+                      backgroundColor: deleteCascade === 'true' ? '#fef2f2' : '#ffffff',
+                      border: deleteCascade === 'true' ? '1px solid #fca5a5' : '1px solid var(--border-subtle)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onClick={() => setDeleteCascade('true')}
+                  >
+                    <Radio
+                      value="true"
+                      color="red"
+                      label={
+                        <Text fw={600} size="xs" style={{ color: '#991b1b' }}>
+                          Permanently delete collection AND all {files.length} file{files.length === 1 ? '' : 's'}
+                        </Text>
+                      }
+                      description="Permanently deletes the folder AND destroys all files from Telegram Cloud Storage & database."
+                    />
+                  </Box>
+                </Stack>
+              </Radio.Group>
+            </Paper>
+          ) : (
+            <Paper p="xs" withBorder radius="md" style={{ backgroundColor: '#f8fafc' }}>
               <Text size="xs" c="dimmed">
-                This collection currently contains {files.length} document(s). Choose what happens to the files:
+                📁 No files will be affected because this folder is empty.
               </Text>
-            </Box>
-          </Group>
+            </Paper>
+          )}
 
-          <Paper p="sm" withBorder radius="md" style={{ backgroundColor: '#f8fafc' }}>
-            <Radio.Group value={deleteCascade} onChange={setDeleteCascade}>
-              <Stack gap="xs">
-                <Radio
-                  value="false"
-                  label="Move files to Inbox (Keep files safe)"
-                  description="Deletes the collection, but preserves the files in your unassigned Inbox."
-                />
-                <Radio
-                  value="true"
-                  label="Permanently delete all files in this collection"
-                  description="Deletes the collection and permanently removes all its files from Telegram Vault and MongoDB."
-                  color="red"
-                />
-              </Stack>
-            </Radio.Group>
-          </Paper>
-
-          <Group justify="flex-end">
+          <Group justify="flex-end" mt="xs">
             <Button variant="default" size="xs" onClick={() => setDeleteModalOpen(false)}>
               Cancel
             </Button>
@@ -1188,7 +1413,210 @@ export default function CollectionHubView({
               loading={isSubmittingDelete}
               onClick={handleConfirmDelete}
             >
-              Confirm Delete
+              {files.length > 0 && deleteCascade === 'true'
+                ? `Delete Folder & ${files.length} File${files.length === 1 ? '' : 's'}`
+                : 'Delete Collection'}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Floating Bottom Batch Action Bar */}
+      {selectedFileIds.length > 0 && (
+        <Paper
+          shadow="xl"
+          p="xs"
+          radius="xl"
+          withBorder
+          style={{
+            position: 'fixed',
+            bottom: isMobile ? 16 : 28,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            backgroundColor: 'rgba(15, 23, 42, 0.94)',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            boxShadow: '0 20px 40px -8px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.08)',
+            maxWidth: 'calc(100vw - 32px)',
+          }}
+        >
+          <Group gap={isMobile ? 'xs' : 'md'} wrap="nowrap" px="xs">
+            {/* Selection Info */}
+            <Group gap={6} wrap="nowrap">
+              <Badge
+                size="md"
+                variant="filled"
+                color="emerald"
+                style={{ fontWeight: 700, letterSpacing: '0.02em' }}
+              >
+                {selectedFileIds.length} {selectedFileIds.length === 1 ? 'file' : 'files'}
+              </Badge>
+              {!isMobile && (
+                <Text size="xs" style={{ color: '#94a3b8' }}>
+                  ({formatBytes(selectedBytes)})
+                </Text>
+              )}
+            </Group>
+
+            <Divider orientation="vertical" style={{ borderColor: 'rgba(255, 255, 255, 0.15)', height: 20 }} />
+
+            {/* Move Action Button */}
+            <Button
+              size="xs"
+              variant="light"
+              color="blue"
+              radius="md"
+              leftSection={<FolderInput size={14} />}
+              onClick={handleOpenBatchMove}
+              styles={{
+                root: {
+                  backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                  color: '#60a5fa',
+                  border: '1px solid rgba(96, 165, 250, 0.25)',
+                  '&:hover': { backgroundColor: 'rgba(59, 130, 246, 0.25)' },
+                },
+              }}
+            >
+              Move
+            </Button>
+
+            {/* Delete Action Button */}
+            <Button
+              size="xs"
+              color="red"
+              radius="md"
+              leftSection={<Trash2 size={14} />}
+              onClick={() => setBatchDeleteModalOpen(true)}
+              styles={{
+                root: {
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  fontWeight: 600,
+                  '&:hover': { backgroundColor: '#b91c1c' },
+                },
+              }}
+            >
+              Delete
+            </Button>
+
+            {/* Cancel / Deselect Button */}
+            <ActionIcon
+              size="sm"
+              variant="subtle"
+              color="gray"
+              radius="xl"
+              onClick={handleClearSelection}
+              title="Deselect all (Esc)"
+              style={{ color: '#cbd5e1' }}
+            >
+              <X size={15} />
+            </ActionIcon>
+          </Group>
+        </Paper>
+      )}
+
+      {/* Batch Move Modal */}
+      <Modal
+        opened={batchMoveModalOpen}
+        onClose={() => setBatchMoveModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <FolderInput size={18} color="var(--brand-emerald)" />
+            <Text fw={600} size="md">Move {selectedFileIds.length} File{selectedFileIds.length === 1 ? '' : 's'}</Text>
+          </Group>
+        }
+        centered
+        radius="lg"
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            Choose target destination for {selectedFileIds.length} selected file{selectedFileIds.length === 1 ? '' : 's'}:
+          </Text>
+
+          <Select
+            label="Target Collection"
+            placeholder="Select destination folder..."
+            data={[
+              { label: '📥 Inbox (Unassigned / Loose Files)', value: '' },
+              ...availableCollections.map((c) => ({
+                label: `📁 ${c.name} (${c.scope === 'personal' ? 'Personal' : 'Work'}${c.groupName ? ` • ${c.groupName}` : ''})`,
+                value: c.id,
+              })),
+            ]}
+            value={targetMoveCollectionId}
+            onChange={(val) => setTargetMoveCollectionId(val ?? '')}
+            searchable
+          />
+
+          <Group justify="flex-end" mt="md">
+            <Button variant="default" size="xs" onClick={() => setBatchMoveModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              color="emerald"
+              size="xs"
+              loading={isSubmittingBatch}
+              onClick={handleConfirmBatchMove}
+            >
+              Move {selectedFileIds.length} File{selectedFileIds.length === 1 ? '' : 's'}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Batch Delete Confirmation Modal */}
+      <Modal
+        opened={batchDeleteModalOpen}
+        onClose={() => setBatchDeleteModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <AlertTriangle size={18} color="#ef4444" />
+            <Text fw={600} size="md" c="red">Delete {selectedFileIds.length} File{selectedFileIds.length === 1 ? '' : 's'}</Text>
+          </Group>
+        }
+        centered
+        radius="lg"
+      >
+        <Stack gap="md">
+          <Paper p="sm" radius="md" withBorder style={{ backgroundColor: '#fef2f2', borderColor: '#fca5a5' }}>
+            <Text size="sm" fw={600} c="red" mb={4}>
+              Permanent Database & Telegram Storage Removal
+            </Text>
+            <Text size="xs" style={{ color: '#991b1b', lineHeight: 1.5 }}>
+              Are you sure you want to permanently delete these <strong>{selectedFileIds.length} file{selectedFileIds.length === 1 ? '' : 's'}</strong> ({formatBytes(selectedBytes)})?
+              This will erase them from MongoDB database and destroy their encrypted blobs on Telegram. This action cannot be undone.
+            </Text>
+          </Paper>
+
+          <Box style={{ maxHeight: 180, overflowY: 'auto' }}>
+            <Stack gap={4}>
+              {selectedFiles.slice(0, 10).map((f) => (
+                <Group key={f.id} gap="xs" wrap="nowrap" px="xs" py={4} style={{ backgroundColor: '#f8fafc', borderRadius: 6 }}>
+                  <Trash2 size={13} color="#ef4444" style={{ flexShrink: 0 }} />
+                  <Text size="xs" fw={500} truncate style={{ flex: 1 }}>{f.title || f.filename}</Text>
+                  <Text size="11px" c="dimmed">{formatBytes(f.fileSize || 0)}</Text>
+                </Group>
+              ))}
+              {selectedFiles.length > 10 && (
+                <Text size="xs" c="dimmed" ta="center" pt={4}>
+                  ...and {selectedFiles.length - 10} more file{selectedFiles.length - 10 === 1 ? '' : 's'}
+                </Text>
+              )}
+            </Stack>
+          </Box>
+
+          <Group justify="flex-end" mt="md">
+            <Button variant="default" size="xs" onClick={() => setBatchDeleteModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              size="xs"
+              loading={isSubmittingBatch}
+              onClick={handleConfirmBatchDelete}
+            >
+              Permanently Delete {selectedFileIds.length} File{selectedFileIds.length === 1 ? '' : 's'}
             </Button>
           </Group>
         </Stack>

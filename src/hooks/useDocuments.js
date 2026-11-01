@@ -45,19 +45,32 @@ export function useDocuments() {
       const target = documents.find((d) => d.id === id);
       setSelectedDocId(id);
       setCurrentDoc(target || null);
-      setCurrentContent(null);
+
+      const ext = (target?.filename || target?.title || '').split('.').pop().toLowerCase();
+      const isMedia =
+        ['image', 'video', 'audio', 'media'].includes(target?.format) ||
+        ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp', 'ico', 'tiff', 'avif', 'mp4', 'webm', 'mov', 'mp3', 'wav', 'ogg'].includes(ext);
+
+      // For media/image files, the viewer streams directly via /view without needing blocking content parsing
+      if (!isMedia) {
+        setCurrentContent(null);
+      }
 
       try {
-        setLoadingContent(true);
+        if (!isMedia) {
+          setLoadingContent(true);
+        }
         const res = await getDocumentContent(id);
         setCurrentDoc(res.metadata || target);
         setCurrentContent(res.content);
       } catch (err) {
-        notifications.show({
-          title: 'Error Loading Document',
-          message: extractErrorMessage(err, 'Operation failed.'),
-          color: 'red',
-        });
+        if (!isMedia) {
+          notifications.show({
+            title: 'Error Loading Document',
+            message: extractErrorMessage(err, 'Operation failed.'),
+            color: 'red',
+          });
+        }
       } finally {
         setLoadingContent(false);
       }
@@ -106,15 +119,17 @@ export function useDocuments() {
 
         notifications.show({
           title: 'Deleted from Vault',
-          message: 'File removed from Telegram channel and index.',
+          message: 'File removed from database and Telegram.',
           color: 'gray',
         });
+        return true;
       } catch (err) {
         notifications.show({
           title: 'Delete Failed',
           message: extractErrorMessage(err, 'Operation failed.'),
           color: 'red',
         });
+        throw err;
       }
     },
     [selectedDocId]

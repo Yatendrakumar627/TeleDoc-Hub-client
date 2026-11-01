@@ -17,6 +17,7 @@ export default function ViewerContainer({
   loading = false,
   collection = null,
   collectionFiles = [],
+  allDocuments = [],
   isViewingCollectionHub = false,
   group = null,
   isViewingGroupHub = false,
@@ -32,6 +33,8 @@ export default function ViewerContainer({
   onDeleteGroup,
   onCreateCollectionInGroup,
   onAssignCollectionToGroup,
+  onBatchMoveFiles,
+  onBatchDeleteFiles,
   onCloseFile,
   isProcessing = false,
 }) {
@@ -68,6 +71,8 @@ export default function ViewerContainer({
         onDeleteGroup={onDeleteGroup}
         onCreateCollectionInGroup={onCreateCollectionInGroup}
         onAssignCollectionToGroup={onAssignCollectionToGroup}
+        onBatchMoveFiles={onBatchMoveFiles}
+        onBatchDeleteFiles={onBatchDeleteFiles}
       />
     );
   }
@@ -92,6 +97,8 @@ export default function ViewerContainer({
         onOpenUpload={onOpenUpload}
         onUpdateCollection={onUpdateCollection}
         onDeleteCollection={onDeleteCollection}
+        onBatchMoveFiles={onBatchMoveFiles}
+        onBatchDeleteFiles={onBatchDeleteFiles}
       />
     );
   }
@@ -140,7 +147,14 @@ export default function ViewerContainer({
       ) : isSpreadsheet ? (
         <SheetTable document={document} content={content} onRenameFile={onRenameFile} onCloseFile={onCloseFile} />
       ) : isMediaOrBinary ? (
-        <MediaBinaryViewer document={document} content={content} onRenameFile={onRenameFile} onCloseFile={onCloseFile} />
+        <MediaBinaryViewer
+          document={document}
+          content={content}
+          collectionFiles={collectionFiles && collectionFiles.length > 0 ? collectionFiles : allDocuments}
+          onSelectFile={onSelectFile}
+          onRenameFile={onRenameFile}
+          onCloseFile={onCloseFile}
+        />
       ) : (
         <DocReader document={document} content={content} onRenameFile={onRenameFile} onCloseFile={onCloseFile} />
       )}

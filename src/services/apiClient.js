@@ -184,6 +184,13 @@ export const batchMoveDocuments = async (documentIds, collectionId) => {
   return res.data;
 };
 
+export const batchDeleteDocuments = async (documentIds) => {
+  const res = await apiClient.post('/documents/batch-delete', {
+    documentIds,
+  });
+  return res.data;
+};
+
 export const updateDocument = async (docId, updates) => {
   const res = await apiClient.patch(`/documents/${docId}`, updates);
   return res.data.document;

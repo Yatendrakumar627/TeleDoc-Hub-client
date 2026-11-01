@@ -15,6 +15,8 @@ import {
   updateGroup,
   deleteGroup,
   assignCollectionGroup,
+  batchMoveDocuments,
+  batchDeleteDocuments,
 } from './services/apiClient';
 
 import WorkspaceLayout from './components/layout/WorkspaceLayout';
@@ -74,10 +76,11 @@ function VaultWorkspace() {
     clearError,
     uploadFile,
     ingestLink,
-  } = useUpload((newDoc, newContent) => {
+  } = useUpload(async (newDoc, newContent) => {
     addDocument(newDoc, newContent);
-    refreshDocuments();
-    loadGroups();
+    await refreshDocuments();
+    await loadGroups();
+    setCollectionsVersion((v) => v + 1);
   });
 
   // Open Upload Modal with optional target collection/group pre-selected
@@ -228,20 +231,23 @@ function VaultWorkspace() {
         setSelectedCollection(null);
         setIsViewingCollectionHub(false);
       }
-      refreshDocuments();
-      loadGroups();
+      if (cascade && currentDoc?.collectionId === colId) {
+        closeDocument();
+      }
+      await refreshDocuments();
+      await loadGroups();
       setCollectionsVersion((v) => v + 1);
       notifications.show({
         title: 'Collection Deleted',
         message: cascade
-          ? 'Collection and all associated files deleted.'
+          ? 'Collection and all associated files deleted from database and Telegram.'
           : 'Collection deleted. Files moved to Inbox.',
         color: 'gray',
       });
     } catch (err) {
       notifications.show({
         title: 'Delete Failed',
-        message: extractErrorMessage(err, 'Failed to update collection.'),
+        message: extractErrorMessage(err, 'Failed to delete collection.'),
         color: 'red',
       });
     }
@@ -298,19 +304,20 @@ function VaultWorkspace() {
       if (selectedGroupId === id) {
         setIsViewingGroupHub(false);
       }
-      refreshDocuments();
-      loadGroups();
+      await refreshDocuments();
+      await loadGroups();
+      setCollectionsVersion((v) => v + 1);
       notifications.show({
         title: 'Group Deleted',
         message: cascade
-          ? 'Group and all member files permanently deleted.'
+          ? 'Group and all member files permanently deleted from database.'
           : 'Group disbanded. Items safely preserved in General.',
         color: 'gray',
       });
     } catch (err) {
       notifications.show({
         title: 'Delete Failed',
-        message: extractErrorMessage(err, 'Failed to update collection.'),
+        message: extractErrorMessage(err, 'Failed to delete group.'),
         color: 'red',
       });
       throw err;
@@ -369,11 +376,66 @@ function VaultWorkspace() {
 
   // Remove document with group sync
   const handleRemoveDoc = async (id) => {
-    await removeDocument(id);
-    if (isViewingGroupHub && selectedGroupId) {
-      await selectGroup(selectedGroupId);
+    try {
+      await removeDocument(id);
+      if (isViewingGroupHub && selectedGroupId) {
+        await selectGroup(selectedGroupId);
+      }
+      await refreshDocuments();
+      await loadGroups();
+      setCollectionsVersion((v) => v + 1);
+    } catch (err) {
+      console.error('handleRemoveDoc error:', err);
     }
-    loadGroups();
+  };
+
+  // Batch Move multiple documents to another collection or inbox
+  const handleBatchMoveDocs = async (docIds, targetColId) => {
+    try {
+      const res = await batchMoveDocuments(docIds, targetColId);
+      await refreshDocuments();
+      await loadGroups();
+      setCollectionsVersion((v) => v + 1);
+      notifications.show({
+        title: 'Files Moved',
+        message: res.message || `Moved ${docIds.length} file(s).`,
+        color: 'teal',
+      });
+      return res;
+    } catch (err) {
+      notifications.show({
+        title: 'Batch Move Failed',
+        message: extractErrorMessage(err, 'Failed to move selected files.'),
+        color: 'red',
+      });
+      throw err;
+    }
+  };
+
+  // Batch Permanently Delete multiple documents
+  const handleBatchDeleteDocs = async (docIds) => {
+    try {
+      const res = await batchDeleteDocuments(docIds);
+      if (currentDoc && docIds.includes(currentDoc.id)) {
+        closeDocument();
+      }
+      await refreshDocuments();
+      await loadGroups();
+      setCollectionsVersion((v) => v + 1);
+      notifications.show({
+        title: 'Files Deleted',
+        message: `Permanently removed ${res.deletedCount || docIds.length} file(s) from database and Telegram.`,
+        color: 'gray',
+      });
+      return res;
+    } catch (err) {
+      notifications.show({
+        title: 'Batch Delete Failed',
+        message: extractErrorMessage(err, 'Failed to delete selected files.'),
+        color: 'red',
+      });
+      throw err;
+    }
   };
 
   // Calculate files belonging to the active collection context
@@ -426,6 +488,7 @@ function VaultWorkspace() {
           loading={loadingContent || (isViewingGroupHub && loadingGroupDetail)}
           collection={selectedCollection}
           collectionFiles={activeCollectionFiles}
+          allDocuments={documents}
           isViewingCollectionHub={isViewingCollectionHub}
           group={currentGroup}
           isViewingGroupHub={isViewingGroupHub}
@@ -441,6 +504,8 @@ function VaultWorkspace() {
           onDeleteGroup={handleDeleteGroup}
           onCreateCollectionInGroup={handleCreateCollectionInGroup}
           onAssignCollectionToGroup={handleAssignCollectionToGroup}
+          onBatchMoveFiles={handleBatchMoveDocs}
+          onBatchDeleteFiles={handleBatchDeleteDocs}
           onCloseFile={handleCloseDoc}
           isProcessing={isProcessing}
         />
@@ -451,6 +516,9 @@ function VaultWorkspace() {
         onClose={() => {
           setUploadModalOpen(false);
           setUploadTargetCollection(null);
+          refreshDocuments();
+          loadGroups();
+          setCollectionsVersion((v) => v + 1);
         }}
         targetCollection={uploadTargetCollection}
         onUploadFile={uploadFile}
@@ -461,11 +529,12 @@ function VaultWorkspace() {
         error={uploadError}
         onClearError={clearError}
         onRefreshVault={refreshDocuments}
-        onSuccessNavigate={(docs, content, col) => {
+        onSuccessNavigate={async (docs, content, col) => {
           const docList = Array.isArray(docs) ? docs : [docs];
           addDocument(docs, content);
-          refreshDocuments();
-          loadGroups();
+          await refreshDocuments();
+          await loadGroups();
+          setCollectionsVersion((v) => v + 1);
 
           if (col) {
             setSelectedCollection(col);

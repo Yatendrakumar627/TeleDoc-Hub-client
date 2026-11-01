@@ -20,6 +20,7 @@ import {
   UnstyledButton,
   Menu,
   Paper,
+  Radio,
 } from '@mantine/core';
 import {
   Sparkles,
@@ -41,6 +42,7 @@ import {
   PanelLeftClose,
   GripVertical,
   ArrowUpDown,
+  AlertTriangle,
 } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
 import { useDebouncedValue } from '@mantine/hooks';
@@ -131,6 +133,11 @@ export default function Sidebar({
   const [deletingGroup, setDeletingGroup] = useState(null);
   const [cascadeGroupDelete, setCascadeGroupDelete] = useState(false);
   const [isDeletingGroup, setIsDeletingGroup] = useState(false);
+
+  // Collection Delete state (with file deletion choice)
+  const [deletingCol, setDeletingCol] = useState(null);
+  const [cascadeColDelete, setCascadeColDelete] = useState('false'); // 'false' (keep safe in Inbox) | 'true' (cascade delete files)
+  const [isDeletingCol, setIsDeletingCol] = useState(false);
 
   // Expanded folders and groups in sidebar
   const [expandedFolders, setExpandedFolders] = useState({});
@@ -394,6 +401,19 @@ export default function Sidebar({
       console.error('Error deleting group:', err);
     } finally {
       setIsDeletingGroup(false);
+    }
+  };
+
+  const handleConfirmDeleteCol = async () => {
+    if (!deletingCol || !onDeleteCollection) return;
+    try {
+      setIsDeletingCol(true);
+      await onDeleteCollection(deletingCol.id, cascadeColDelete === 'true');
+      setDeletingCol(null);
+    } catch (err) {
+      console.error('Error deleting collection:', err);
+    } finally {
+      setIsDeletingCol(false);
     }
   };
 
@@ -915,14 +935,14 @@ export default function Sidebar({
           size="xs"
           placeholder="Sort By"
           value={sortBy}
-          leftSection={<ArrowUpDown size={13} style={{ color: 'var(--text-tertiary)' }} />}
+          leftSection={<ArrowUpDown size={13} style={{ color: 'var(--brand-emerald)' }} />}
           onChange={(val) => setSortBy(val || 'newest')}
           data={[
-            { label: 'Newest (Date)', value: 'newest' },
-            { label: 'Oldest (Date)', value: 'oldest' },
+            { label: 'Newest First (Date)', value: 'newest' },
+            { label: 'Oldest First (Date)', value: 'oldest' },
             { label: 'Name (A - Z)', value: 'name' },
-            { label: 'File Size', value: 'size' },
-            { label: 'Custom / Drag Order', value: 'custom' },
+            { label: 'File Size (Largest)', value: 'size' },
+            { label: 'Custom Drag Order', value: 'custom' },
           ]}
           comboboxProps={{ position: 'bottom-start', withinPortal: true, shadow: 'md' }}
           allowDeselect={false}
@@ -939,22 +959,29 @@ export default function Sidebar({
               backgroundColor: 'var(--surface-card)',
               color: 'var(--text-primary)',
             },
-            dropdown: { minWidth: '185px', width: 'max-content', padding: '4px' },
-            option: { fontSize: '12px', whiteSpace: 'nowrap', padding: '6px 12px' },
+            dropdown: { minWidth: '185px', width: 'max-content', padding: '4px', borderRadius: '8px' },
+            option: { fontSize: '12px', whiteSpace: 'nowrap', padding: '6px 12px', borderRadius: '6px' },
           }}
         />
 
-        <Tooltip label={confidentialOnly ? 'Showing Confidential Only (Click to show all)' : 'Filter Confidential Only'} withArrow>
+        <Tooltip
+          label={
+            confidentialOnly
+              ? 'Showing Confidential Only (Click to show all)'
+              : 'Filter Confidential Documents (AES-256)'
+          }
+          withArrow
+        >
           <ActionIcon
             size="32px"
             radius="md"
-            variant={confidentialOnly ? 'filled' : 'light'}
-            color={confidentialOnly ? 'gold' : 'gray'}
+            variant={confidentialOnly ? 'filled' : 'subtle'}
             style={{
               flexShrink: 0,
-              backgroundColor: confidentialOnly ? 'var(--brand-gold)' : 'var(--surface-card)',
-              color: confidentialOnly ? '#ffffff' : 'var(--text-secondary)',
-              border: confidentialOnly ? 'none' : '1px solid var(--border-subtle)',
+              backgroundColor: confidentialOnly ? '#ecfdf5' : 'var(--surface-card)',
+              color: confidentialOnly ? '#059669' : 'var(--text-secondary)',
+              border: confidentialOnly ? '1.5px solid #10b981' : '1px solid var(--border-subtle)',
+              boxShadow: confidentialOnly ? '0 0 0 2px rgba(16, 185, 129, 0.2)' : 'none',
               transition: 'all 0.15s ease',
             }}
             onClick={() => setConfidentialOnly(!confidentialOnly)}
@@ -1007,7 +1034,7 @@ export default function Sidebar({
         offsetScrollbars
         scrollbarSize={6}
       >
-        <Stack gap="xs" pr={4}>
+        <Stack gap="xs" pr={4} pb={50}>
           {viewMode === 'groups' ? (
             // ================= GROUPS VIEW (User-Created Groups Only) =================
             groups.length === 0 ? (
@@ -1462,7 +1489,20 @@ export default function Sidebar({
                                           </Text>
                                         </Group>
 
-                                        <Badge size="xs" variant={isColSelected ? 'filled' : 'light'} color={isColSelected ? 'emerald' : 'gold'}>
+                                        <Badge
+                                          size="xs"
+                                          variant={isColSelected ? 'filled' : 'light'}
+                                          style={{
+                                            fontSize: '10px',
+                                            fontWeight: 600,
+                                            height: 18,
+                                            minWidth: 20,
+                                            padding: '0 5px',
+                                            borderRadius: '6px',
+                                            backgroundColor: isColSelected ? 'var(--brand-emerald)' : '#f1f5f9',
+                                            color: isColSelected ? '#ffffff' : '#475569',
+                                          }}
+                                        >
                                           {cFiles.length}
                                         </Badge>
                                       </Box>
@@ -1746,7 +1786,20 @@ export default function Sidebar({
                       </Group>
 
                       <Group gap={4} wrap="nowrap">
-                        <Badge size="xs" variant={isSelected ? 'filled' : 'light'} color={isSelected ? 'emerald' : 'gold'}>
+                        <Badge
+                          size="xs"
+                          variant={isSelected ? 'filled' : 'light'}
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            height: 18,
+                            minWidth: 20,
+                            padding: '0 5px',
+                            borderRadius: '6px',
+                            backgroundColor: isSelected ? 'var(--brand-emerald)' : '#f1f5f9',
+                            color: isSelected ? '#ffffff' : '#475569',
+                          }}
+                        >
                           {colFiles.length}
                         </Badge>
 
@@ -1762,7 +1815,15 @@ export default function Sidebar({
                             </ActionIcon>
                           </Menu.Target>
 
-                          <Menu.Dropdown onClick={(e) => e.stopPropagation()}>
+                          <Menu.Dropdown
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              borderRadius: '10px',
+                              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
+                              border: '1px solid #e2e8f0',
+                              padding: '5px',
+                            }}
+                          >
                             <Menu.Item
                               leftSection={<Edit3 size={13} />}
                               onClick={() => {
@@ -1783,7 +1844,11 @@ export default function Sidebar({
                             <Menu.Item
                               color="red"
                               leftSection={<Trash2 size={13} />}
-                              onClick={() => onDeleteCollection && onDeleteCollection(col.id, false)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeletingCol(col);
+                                setCascadeColDelete('false');
+                              }}
                             >
                               Delete Collection
                             </Menu.Item>
@@ -1824,7 +1889,17 @@ export default function Sidebar({
 
               {/* Loose / unassigned files note in Folders view */}
               {groupedCollections.unassignedFiles.length > 0 && (
-                <Box px="xs" py="sm" ta="center">
+                <Paper
+                  p="xs"
+                  my="xs"
+                  radius="md"
+                  withBorder
+                  style={{
+                    backgroundColor: '#f8fafc',
+                    borderColor: '#e2e8f0',
+                    textAlign: 'center',
+                  }}
+                >
                   <Text size="11px" c="dimmed">
                     {groupedCollections.unassignedFiles.length} loose {groupedCollections.unassignedFiles.length === 1 ? 'file' : 'files'} not in any folder.
                   </Text>
@@ -1832,12 +1907,13 @@ export default function Sidebar({
                     size="11px"
                     c="emerald"
                     fw={600}
+                    mt={2}
                     style={{ cursor: 'pointer', textDecoration: 'underline' }}
                     onClick={() => setViewMode('flat')}
                   >
                     View in Files tab to assign →
                   </Text>
-                </Box>
+                </Paper>
               )}
             </>
           ) : (
@@ -2194,6 +2270,118 @@ export default function Sidebar({
             </Button>
           </Group>
         </Stack>
+      </Modal>
+
+      {/* Modal: Delete Collection (with file safety options) */}
+      <Modal
+        opened={!!deletingCol}
+        onClose={() => setDeletingCol(null)}
+        title={
+          <Group gap="xs">
+            <AlertTriangle size={18} color="#dc2626" />
+            <Text fw={700} c="red" size="sm">
+              Delete Collection
+            </Text>
+          </Group>
+        }
+        size="md"
+        radius="md"
+      >
+        {deletingCol && (() => {
+          const colFilesCount = documents.filter((d) => d.collectionId === deletingCol.id).length;
+          return (
+            <Stack gap="md">
+              <Box>
+                <Text size="sm" fw={600} style={{ color: 'var(--brand-forest)' }}>
+                  Are you sure you want to delete collection "{deletingCol.name}"?
+                </Text>
+                <Text size="xs" c="dimmed" mt={3}>
+                  {colFilesCount > 0
+                    ? `This collection currently contains ${colFilesCount} file${colFilesCount === 1 ? '' : 's'}. Choose what happens to the files:`
+                    : 'This collection is empty. Deleting it will permanently remove the folder.'}
+                </Text>
+              </Box>
+
+              {colFilesCount > 0 ? (
+                <Paper p="xs" withBorder radius="md" style={{ backgroundColor: '#fcfbfa' }}>
+                  <Radio.Group value={cascadeColDelete} onChange={setCascadeColDelete}>
+                    <Stack gap="xs">
+                      {/* Option 1: Move to Inbox (Safe) */}
+                      <Box
+                        p="xs"
+                        style={{
+                          borderRadius: '8px',
+                          backgroundColor: cascadeColDelete === 'false' ? '#f0fdf4' : '#ffffff',
+                          border: cascadeColDelete === 'false' ? '1px solid #86efac' : '1px solid var(--border-subtle)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onClick={() => setCascadeColDelete('false')}
+                      >
+                        <Radio
+                          value="false"
+                          color="emerald"
+                          label={
+                            <Text fw={600} size="xs" style={{ color: '#166534' }}>
+                              Move {colFilesCount} file{colFilesCount === 1 ? '' : 's'} to Inbox (Keep safe)
+                            </Text>
+                          }
+                          description="Deletes this collection folder, but safely keeps all files in your unassigned library."
+                        />
+                      </Box>
+
+                      {/* Option 2: Delete files with collection (Permanent) */}
+                      <Box
+                        p="xs"
+                        style={{
+                          borderRadius: '8px',
+                          backgroundColor: cascadeColDelete === 'true' ? '#fef2f2' : '#ffffff',
+                          border: cascadeColDelete === 'true' ? '1px solid #fca5a5' : '1px solid var(--border-subtle)',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onClick={() => setCascadeColDelete('true')}
+                      >
+                        <Radio
+                          value="true"
+                          color="red"
+                          label={
+                            <Text fw={600} size="xs" style={{ color: '#991b1b' }}>
+                              Permanently delete collection AND all {colFilesCount} file{colFilesCount === 1 ? '' : 's'}
+                            </Text>
+                          }
+                          description="Permanently deletes the folder AND completely destroys all files from Telegram Cloud Storage & database."
+                        />
+                      </Box>
+                    </Stack>
+                  </Radio.Group>
+                </Paper>
+              ) : (
+                <Paper p="xs" withBorder radius="md" style={{ backgroundColor: '#f8fafc' }}>
+                  <Text size="xs" c="dimmed">
+                    📁 No files will be affected because this folder is empty.
+                  </Text>
+                </Paper>
+              )}
+
+              <Group justify="flex-end" mt="xs">
+                <Button variant="default" size="xs" onClick={() => setDeletingCol(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  color="red"
+                  size="xs"
+                  loading={isDeletingCol}
+                  onClick={handleConfirmDeleteCol}
+                >
+                  {colFilesCount > 0 && cascadeColDelete === 'true'
+                    ? `Delete Folder & ${colFilesCount} File${colFilesCount === 1 ? '' : 's'}`
+                    : 'Delete Collection'}
+                </Button>
+              </Group>
+            </Stack>
+          );
+        })()}
       </Modal>
     </Stack>
   );

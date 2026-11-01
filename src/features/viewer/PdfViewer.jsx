@@ -359,9 +359,9 @@ export default function PdfViewer({ document, content, onRenameFile, onCloseFile
                         fontWeight: 600,
                         textTransform: 'none',
                         borderRadius: '8px',
-                        backgroundColor: 'rgba(24, 88, 68, 0.08)',
-                        color: 'var(--brand-forest)',
-                        border: '1px solid rgba(24, 88, 68, 0.2)',
+                        backgroundColor: '#ecfdf5',
+                        color: '#065f46',
+                        border: '1px solid #a7f3d0',
                       }}
                     >
                       Vault Synced
@@ -379,9 +379,9 @@ export default function PdfViewer({ document, content, onRenameFile, onCloseFile
                       height: 32,
                       fontWeight: 600,
                       borderRadius: '8px',
-                      backgroundColor: 'var(--brand-forest)',
+                      background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
                       color: '#ffffff',
-                      boxShadow: '0 2px 6px rgba(24, 88, 68, 0.2)',
+                      boxShadow: '0 2px 6px rgba(5, 150, 105, 0.25)',
                       transition: 'all 0.15s ease',
                     }}
                   >

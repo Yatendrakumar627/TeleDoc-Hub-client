@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Box,
   Paper,
@@ -24,6 +24,7 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCw,
+  RotateCcw,
   Maximize2,
   Minimize2,
   RefreshCw,
@@ -37,6 +38,12 @@ import {
   Sparkles,
   X,
   ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  FlipHorizontal,
+  FlipVertical,
+  Layers,
+  Image as ImageIcon,
 } from 'lucide-react';
 import SourceBadge from '../../components/ui/SourceBadge';
 import SearchFilterInput from '../../components/ui/SearchFilterInput';
@@ -44,7 +51,14 @@ import EditableDocumentTitle from '../../components/ui/EditableDocumentTitle';
 import { formatBytes } from '../../utils/formatters';
 import { API_BASE_URL } from '../../config';
 
-export default function MediaBinaryViewer({ document, content, onRenameFile, onCloseFile }) {
+export default function MediaBinaryViewer({
+  document,
+  content,
+  collectionFiles = [],
+  onSelectFile,
+  onRenameFile,
+  onCloseFile,
+}) {
   const format = (content?.format || document?.format || '').toLowerCase();
   const docType = (document?.type || content?.type || '').toLowerCase();
 
@@ -53,17 +67,59 @@ export default function MediaBinaryViewer({ document, content, onRenameFile, onC
   const isAudio = format === 'audio' || (format === 'media' && docType === 'audio') || ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac', 'wma'].includes(docType);
   const isArchive = format === 'archive' || docType === 'zip';
 
+  // Compute all available images in the current collection/scope
+  const isImageDoc = (doc) => {
+    if (!doc) return false;
+    const fmt = (doc.format || '').toLowerCase();
+    const typ = (doc.type || '').toLowerCase();
+    const ext = (doc.filename || doc.title || '').split('.').pop().toLowerCase();
+    return (
+      fmt === 'image' ||
+      ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp', 'ico', 'tiff', 'avif'].includes(typ) ||
+      ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp', 'ico', 'tiff', 'avif'].includes(ext)
+    );
+  };
+
+  const imageFiles = useMemo(() => {
+    const list = Array.isArray(collectionFiles) && collectionFiles.length > 0 ? collectionFiles : [document];
+    const filtered = list.filter(isImageDoc);
+    return filtered.length > 0 ? filtered : [document];
+  }, [collectionFiles, document]);
+
+  const currentIndex = useMemo(() => {
+    return imageFiles.findIndex((f) => f.id === document.id);
+  }, [imageFiles, document.id]);
+
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex >= 0 && currentIndex < imageFiles.length - 1;
+
+  const handlePrevImage = () => {
+    if (hasPrev && onSelectFile) {
+      onSelectFile(imageFiles[currentIndex - 1].id);
+    }
+  };
+
+  const handleNextImage = () => {
+    if (hasNext && onSelectFile) {
+      onSelectFile(imageFiles[currentIndex + 1].id);
+    }
+  };
+
   // Image manipulation state
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
+  const [flipH, setFlipH] = useState(false);
+  const [flipV, setFlipV] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [backdropTheme, setBackdropTheme] = useState('dark'); // 'dark' | 'light' | 'grid'
+  const [showFilmstrip, setShowFilmstrip] = useState(true);
   const [dimensions, setDimensions] = useState(null);
 
   // Pan / Dragging state
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
+  const activeThumbRef = useRef(null);
 
   // Video & Audio state
   const videoRef = useRef(null);
@@ -81,14 +137,100 @@ export default function MediaBinaryViewer({ document, content, onRenameFile, onC
   const activeMediaUrl = isVideo || isAudio ? streamUrl : (content?.dataUrl || streamUrl);
   const downloadUrl = `${API_BASE_URL}/documents/${document.id}/download`;
 
-  // Reset zoom, pan, and playback errors when document changes
+  // Auto-scroll active thumbnail into view in filmstrip
+  useEffect(() => {
+    if (activeThumbRef.current) {
+      activeThumbRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
+    }
+  }, [document.id, showFilmstrip]);
+
+  // High-Performance Predictive Preloading: Preload prev & next images into browser cache for 0ms instant switching
+  useEffect(() => {
+    if (!isImage || imageFiles.length <= 1) return;
+
+    const toPreload = [];
+    if (hasNext && imageFiles[currentIndex + 1]) toPreload.push(imageFiles[currentIndex + 1]);
+    if (hasPrev && imageFiles[currentIndex - 1]) toPreload.push(imageFiles[currentIndex - 1]);
+
+    toPreload.forEach((img) => {
+      if (img?.id) {
+        const preloadImg = new Image();
+        preloadImg.decoding = 'async';
+        preloadImg.src = `${API_BASE_URL}/documents/${img.id}/view?token=${encodeURIComponent(token)}`;
+      }
+    });
+  }, [currentIndex, isImage, imageFiles, hasNext, hasPrev, token]);
+
+  // Reset zoom, pan, and transforms when document changes
   useEffect(() => {
     setZoom(1);
     setRotation(0);
+    setFlipH(false);
+    setFlipV(false);
     setPanOffset({ x: 0, y: 0 });
     videoRetryRef.current = 0;
     setVideoError(null);
   }, [document.id]);
+
+  // Global Keyboard Navigation for Image Studio
+  useEffect(() => {
+    if (!isImage) return;
+    const handleKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(e.target?.tagName)) return;
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handlePrevImage();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleNextImage();
+      } else if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        setZoom((z) => Math.min(5, +(z + 0.25).toFixed(2)));
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        setZoom((z) => Math.max(0.25, +(z - 0.25).toFixed(2)));
+      } else if (e.key.toLowerCase() === 'r') {
+        e.preventDefault();
+        setRotation((r) => (r + 90) % 360);
+      } else if (e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setIsFullscreen((f) => !f);
+      } else if (e.key.toLowerCase() === 't') {
+        e.preventDefault();
+        setShowFilmstrip((s) => !s);
+      } else if (e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        setFlipH((h) => !h);
+      } else if (e.key === '0') {
+        e.preventDefault();
+        setZoom(1);
+        setRotation(0);
+        setFlipH(false);
+        setFlipV(false);
+        setPanOffset({ x: 0, y: 0 });
+      } else if (e.key === 'Escape') {
+        if (isFullscreen) {
+          setIsFullscreen(false);
+        } else if (zoom !== 1 || rotation !== 0 || panOffset.x !== 0 || panOffset.y !== 0) {
+          setZoom(1);
+          setRotation(0);
+          setFlipH(false);
+          setFlipV(false);
+          setPanOffset({ x: 0, y: 0 });
+        } else if (onCloseFile) {
+          onCloseFile();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isImage, hasPrev, hasNext, currentIndex, imageFiles, zoom, rotation, panOffset, isFullscreen]);
 
   const handleVideoError = () => {
     if (videoRetryRef.current < 4 && videoRef.current) {
@@ -128,7 +270,9 @@ export default function MediaBinaryViewer({ document, content, onRenameFile, onC
     if (audioRef.current) audioRef.current.playbackRate = speed;
   };
 
-  // Dragging handlers for smooth pan
+  // Dragging handlers for smooth pan (RAF-throttled to 60/120Hz display refresh rate)
+  const rafRef = useRef(null);
+
   const handleMouseDown = (e) => {
     if (zoom <= 1) return;
     setIsDragging(true);
@@ -140,14 +284,21 @@ export default function MediaBinaryViewer({ document, content, onRenameFile, onC
 
   const handleMouseMove = (e) => {
     if (!isDragging || zoom <= 1) return;
-    setPanOffset({
-      x: e.clientX - dragStartRef.current.x,
-      y: e.clientY - dragStartRef.current.y,
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      setPanOffset({
+        x: clientX - dragStartRef.current.x,
+        y: clientY - dragStartRef.current.y,
+      });
     });
   };
 
   const handleMouseUp = () => {
     setIsDragging(false);
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
   };
 
   // Wheel zoom
@@ -368,16 +519,136 @@ export default function MediaBinaryViewer({ document, content, onRenameFile, onC
 
       {/* 2. Visual Content Stage */}
       {isImage ? (
-        /* Image Studio Stage with Floating Toolbar */
+        /* Enterprise Non-Overlapping Image Studio Stage */
         <Box
           style={{
-            position: 'relative',
-            borderRadius: '12px',
+            ...getBackdropStyle(),
+            height: isFullscreen ? 'calc(100vh - 100px)' : '78vh',
+            minHeight: '560px',
+            borderRadius: '14px',
             overflow: 'hidden',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'relative',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.25)',
           }}
         >
-          {/* Studio Viewport */}
+          {/* Top Non-Overlapping HUD Header Strip */}
+          <Group
+            justify="space-between"
+            align="center"
+            px="md"
+            py={8}
+            wrap="nowrap"
+            style={{
+              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              backgroundColor: 'rgba(15, 23, 42, 0.75)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              zIndex: 10,
+              flexShrink: 0,
+            }}
+          >
+            {/* Left: Index badge & Dimensions */}
+            <Group gap="xs" align="center" wrap="nowrap" style={{ minWidth: 0 }}>
+              {imageFiles.length > 1 && (
+                <Badge
+                  size="sm"
+                  variant="filled"
+                  color="emerald"
+                  style={{ fontWeight: 700, borderRadius: '6px', flexShrink: 0 }}
+                >
+                  {currentIndex + 1} / {imageFiles.length}
+                </Badge>
+              )}
+              {dimensions && (
+                <Text size="xs" style={{ color: '#cbd5e1', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                  {dimensions.w} × {dimensions.h} px
+                </Text>
+              )}
+              {document.fileSize && (
+                <Text size="xs" style={{ color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                  • {formatBytes(document.fileSize)}
+                </Text>
+              )}
+            </Group>
+
+            {/* Right: Filmstrip Toggle, Canvas Theme, Download & Fullscreen */}
+            <Group gap={6} align="center" wrap="nowrap" style={{ flexShrink: 0 }}>
+              {imageFiles.length > 1 && (
+                <Tooltip label={showFilmstrip ? 'Hide Filmstrip' : 'Show Filmstrip'} withArrow>
+                  <ActionIcon
+                    variant={showFilmstrip ? 'filled' : 'subtle'}
+                    color={showFilmstrip ? 'emerald' : 'gray'}
+                    size="sm"
+                    c="white"
+                    onClick={() => setShowFilmstrip(!showFilmstrip)}
+                  >
+                    <Layers size={15} />
+                  </ActionIcon>
+                </Tooltip>
+              )}
+
+              <Tooltip
+                label={
+                  backdropTheme === 'dark'
+                    ? 'Switch to Light Backdrop'
+                    : backdropTheme === 'light'
+                    ? 'Switch to Studio Grid'
+                    : 'Switch to Dark Studio'
+                }
+                withArrow
+              >
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size="sm"
+                  c="white"
+                  onClick={() => {
+                    if (backdropTheme === 'dark') setBackdropTheme('light');
+                    else if (backdropTheme === 'light') setBackdropTheme('grid');
+                    else setBackdropTheme('dark');
+                  }}
+                >
+                  {backdropTheme === 'dark' ? (
+                    <Sun size={15} />
+                  ) : backdropTheme === 'light' ? (
+                    <Grid size={15} />
+                  ) : (
+                    <Moon size={15} />
+                  )}
+                </ActionIcon>
+              </Tooltip>
+
+              <Tooltip label="Download Original Image" withArrow>
+                <ActionIcon
+                  component="a"
+                  href={downloadUrl}
+                  download={document.filename}
+                  variant="subtle"
+                  color="gray"
+                  size="sm"
+                  c="white"
+                >
+                  <Download size={15} />
+                </ActionIcon>
+              </Tooltip>
+
+              <Tooltip label={isFullscreen ? 'Exit Fullscreen (F)' : 'View Fullscreen (F)'} withArrow>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size="sm"
+                  c="white"
+                  onClick={() => setIsFullscreen(!isFullscreen)}
+                >
+                  {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                </ActionIcon>
+              </Tooltip>
+            </Group>
+          </Group>
+
+          {/* Central Dedicated Image Stage (100% Free of any Overlays) */}
           <Box
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
@@ -386,22 +657,95 @@ export default function MediaBinaryViewer({ document, content, onRenameFile, onC
             onWheel={handleWheel}
             onDoubleClick={handleDoubleClick}
             style={{
-              ...getBackdropStyle(),
-              height: isFullscreen ? 'calc(100vh - 120px)' : '74vh',
-              minHeight: '480px',
+              flex: 1,
+              minHeight: 0,
+              width: '100%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              position: 'relative',
               overflow: 'hidden',
               userSelect: 'none',
               cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
-              position: 'relative',
-              padding: '32px 24px 64px 24px', // Extra bottom padding so bottom text is never cut off by dock
+              padding: '16px 20px',
             }}
           >
+
+            {/* Stage Left: Previous Image Floating Action Button */}
+            {hasPrev && (
+              <Tooltip
+                label={`Previous: ${imageFiles[currentIndex - 1]?.title || imageFiles[currentIndex - 1]?.filename} (←)`}
+                withArrow
+                position="right"
+              >
+                <ActionIcon
+                  variant="filled"
+                  size="44px"
+                  radius="xl"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePrevImage();
+                  }}
+                  style={{
+                    position: 'absolute',
+                    left: 20,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 25,
+                    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    color: '#ffffff',
+                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <ChevronLeft size={22} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+
+            {/* Stage Right: Next Image Floating Action Button */}
+            {hasNext && (
+              <Tooltip
+                label={`Next: ${imageFiles[currentIndex + 1]?.title || imageFiles[currentIndex + 1]?.filename} (→)`}
+                withArrow
+                position="left"
+              >
+                <ActionIcon
+                  variant="filled"
+                  size="44px"
+                  radius="xl"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleNextImage();
+                  }}
+                  style={{
+                    position: 'absolute',
+                    right: 20,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 25,
+                    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    color: '#ffffff',
+                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.45)',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <ChevronRight size={22} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+
+            {/* Active Rendered Image Canvas */}
             <img
               src={activeMediaUrl}
               alt={document.title}
+              decoding="async"
               onLoad={(e) => {
                 setDimensions({
                   w: e.currentTarget.naturalWidth,
@@ -410,9 +754,10 @@ export default function MediaBinaryViewer({ document, content, onRenameFile, onC
               }}
               draggable={false}
               style={{
-                transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+                transform: `translate3d(${panOffset.x}px, ${panOffset.y}px, 0) scale(${zoom}) scale(${flipH ? -1 : 1}, ${flipV ? -1 : 1}) rotate(${rotation}deg)`,
                 transformOrigin: 'center center',
                 transition: isDragging ? 'none' : 'transform 0.15s cubic-bezier(0.2, 0, 0, 1)',
+                willChange: isDragging || zoom > 1 ? 'transform' : 'auto',
                 maxWidth: '100%',
                 maxHeight: '100%',
                 objectFit: 'contain',
@@ -423,142 +768,286 @@ export default function MediaBinaryViewer({ document, content, onRenameFile, onC
                     : '0 20px 45px -10px rgba(0, 0, 0, 0.7), 0 0 1px 1px rgba(255, 255, 255, 0.08)',
               }}
             />
+          </Box>
 
-            {/* Floating Studio Dock (Frosted Glass) */}
-            <Box
+          {/* Bottom Structured Studio Control & Navigation Area (Completely Non-Overlapping) */}
+          <Box
+            style={{
+              flexShrink: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.95)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              padding: showFilmstrip && imageFiles.length > 1 ? '8px 16px 12px' : '8px 16px',
+              gap: 8,
+              zIndex: 15,
+            }}
+          >
+            {/* Filmstrip Carousel Row */}
+            {imageFiles.length > 1 && showFilmstrip && (
+              <Box
+                className="teledoc-filmstrip-scroll"
+                style={{
+                  maxWidth: 'min(92vw, 760px)',
+                  width: '100%',
+                  overflowX: 'auto',
+                  overflowY: 'hidden',
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
+                  WebkitOverflowScrolling: 'touch',
+                  padding: '4px 6px',
+                }}
+              >
+                <style>{`
+                  .teledoc-filmstrip-scroll::-webkit-scrollbar {
+                    display: none;
+                    width: 0;
+                    height: 0;
+                  }
+                `}</style>
+                <Group gap={8} wrap="nowrap" align="center" justify="center" style={{ minWidth: 'min-content', margin: '0 auto' }}>
+                  {imageFiles.map((img, idx) => {
+                    const isCurrent = img.id === document.id;
+                    // Windowed virtualization: Render actual <img> within ±12 window around active photo, or when collection <= 24
+                    const isWithinWindow = Math.abs(idx - currentIndex) <= 12 || imageFiles.length <= 24;
+                    const imgThumbUrl = `${API_BASE_URL}/documents/${img.id}/view?token=${encodeURIComponent(token)}`;
+                    const tooltipText = `${img.title || img.filename} (${idx + 1} of ${imageFiles.length})`;
+
+                    return (
+                      <Box
+                        key={img.id}
+                        ref={isCurrent ? activeThumbRef : null}
+                        title={tooltipText}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onSelectFile) onSelectFile(img.id);
+                        }}
+                        style={{
+                          width: 46,
+                          height: 46,
+                          borderRadius: '8px',
+                          overflow: 'hidden',
+                          cursor: 'pointer',
+                          border: isCurrent ? '2px solid #10b981' : '1px solid rgba(255, 255, 255, 0.16)',
+                          boxShadow: isCurrent ? '0 0 12px rgba(16, 185, 129, 0.65)' : 'none',
+                          opacity: isCurrent ? 1 : 0.6,
+                          transform: isCurrent ? 'scale(1.06)' : 'scale(1)',
+                          transition: 'all 0.15s ease',
+                          flexShrink: 0,
+                          backgroundColor: '#090d16',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {isWithinWindow ? (
+                          <img
+                            src={imgThumbUrl}
+                            alt={img.title || img.filename}
+                            loading="lazy"
+                            decoding="async"
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              display: 'block',
+                            }}
+                          />
+                        ) : (
+                          <ImageIcon size={16} color="rgba(255, 255, 255, 0.2)" />
+                        )}
+                      </Box>
+                    );
+                  })}
+                </Group>
+              </Box>
+            )}
+
+            {/* Studio Action Dock (Pill toolbar) */}
+            <Group
+              gap={6}
+              align="center"
+              wrap="nowrap"
               style={{
-                position: 'absolute',
-                bottom: 18,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                backgroundColor: 'rgba(15, 23, 42, 0.85)',
-                backdropFilter: 'blur(16px)',
-                WebkitBackdropFilter: 'blur(16px)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
+                backgroundColor: 'rgba(30, 41, 59, 0.75)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
                 borderRadius: '9999px',
-                padding: '6px 14px',
-                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4)',
-                zIndex: 20,
+                padding: '4px 12px',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+                maxWidth: '95vw',
+                overflowX: 'auto',
               }}
             >
-              <Group gap={6} align="center">
-                <Tooltip label="Zoom Out" withArrow>
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    size="sm"
-                    c="white"
-                    onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))}
-                  >
-                    <ZoomOut size={15} />
-                  </ActionIcon>
-                </Tooltip>
+              {/* 1. Image Navigation Segment */}
+              {imageFiles.length > 1 && (
+                <>
+                  <Tooltip label="Previous Image (←)" withArrow>
+                    <ActionIcon
+                      variant="subtle"
+                      color="gray"
+                      size="sm"
+                      c="white"
+                      disabled={!hasPrev}
+                      onClick={handlePrevImage}
+                      style={{ opacity: hasPrev ? 1 : 0.35 }}
+                    >
+                      <ChevronLeft size={16} />
+                    </ActionIcon>
+                  </Tooltip>
 
-                <Tooltip label="Click to reset to Fit" withArrow>
-                  <Button
-                    variant="subtle"
-                    size="compact-xs"
-                    c="white"
-                    px={6}
-                    onClick={() => {
-                      setZoom(1);
-                      setPanOffset({ x: 0, y: 0 });
-                    }}
-                    style={{ fontWeight: 600, fontSize: '0.78rem' }}
-                  >
-                    {Math.round(zoom * 100)}%
-                  </Button>
-                </Tooltip>
+                  <Text size="11px" fw={600} c="white" px={4} style={{ whiteSpace: 'nowrap', userSelect: 'none' }}>
+                    {currentIndex + 1} / {imageFiles.length}
+                  </Text>
 
-                <Tooltip label="Zoom In" withArrow>
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    size="sm"
-                    c="white"
-                    onClick={() => setZoom((z) => Math.min(4, +(z + 0.25).toFixed(2)))}
-                  >
-                    <ZoomIn size={15} />
-                  </ActionIcon>
-                </Tooltip>
+                  <Tooltip label="Next Image (→)" withArrow>
+                    <ActionIcon
+                      variant="subtle"
+                      color="gray"
+                      size="sm"
+                      c="white"
+                      disabled={!hasNext}
+                      onClick={handleNextImage}
+                      style={{ opacity: hasNext ? 1 : 0.35 }}
+                    >
+                      <ChevronRight size={16} />
+                    </ActionIcon>
+                  </Tooltip>
 
-                <Box style={{ width: 1, height: 16, backgroundColor: 'rgba(255,255,255,0.2)', margin: '0 4px' }} />
+                  <Box style={{ width: 1, height: 16, backgroundColor: 'rgba(255,255,255,0.2)', margin: '0 4px' }} />
+                </>
+              )}
 
-                <Tooltip label="Rotate 90° Clockwise" withArrow>
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    size="sm"
-                    c="white"
-                    onClick={() => setRotation((r) => (r + 90) % 360)}
-                  >
-                    <RotateCw size={15} />
-                  </ActionIcon>
-                </Tooltip>
-
-                <Tooltip label="Reset Zoom & Rotation" withArrow>
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    size="sm"
-                    c="white"
-                    onClick={() => {
-                      setZoom(1);
-                      setRotation(0);
-                      setPanOffset({ x: 0, y: 0 });
-                    }}
-                  >
-                    <RefreshCw size={14} />
-                  </ActionIcon>
-                </Tooltip>
-
-                <Box style={{ width: 1, height: 16, backgroundColor: 'rgba(255,255,255,0.2)', margin: '0 4px' }} />
-
-                {/* Canvas Theme Toggle */}
-                <Tooltip
-                  label={
-                    backdropTheme === 'dark'
-                      ? 'Switch to Light Backdrop'
-                      : backdropTheme === 'light'
-                      ? 'Switch to Studio Grid'
-                      : 'Switch to Dark Studio'
-                  }
-                  withArrow
+              {/* 2. Zoom Controls Segment */}
+              <Tooltip label="Zoom Out (-)" withArrow>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size="sm"
+                  c="white"
+                  onClick={() => setZoom((z) => Math.max(0.25, +(z - 0.25).toFixed(2)))}
                 >
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    size="sm"
-                    c="white"
-                    onClick={() => {
-                      if (backdropTheme === 'dark') setBackdropTheme('light');
-                      else if (backdropTheme === 'light') setBackdropTheme('grid');
-                      else setBackdropTheme('dark');
-                    }}
-                  >
-                    {backdropTheme === 'dark' ? (
-                      <Sun size={15} />
-                    ) : backdropTheme === 'light' ? (
-                      <Grid size={15} />
-                    ) : (
-                      <Moon size={15} />
-                    )}
-                  </ActionIcon>
-                </Tooltip>
+                  <ZoomOut size={15} />
+                </ActionIcon>
+              </Tooltip>
 
-                <Tooltip label={isFullscreen ? 'Exit Fullscreen' : 'View Fullscreen'} withArrow>
-                  <ActionIcon
-                    variant="subtle"
-                    color="gray"
-                    size="sm"
-                    c="white"
-                    onClick={() => setIsFullscreen(!isFullscreen)}
-                  >
-                    {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-                  </ActionIcon>
-                </Tooltip>
-              </Group>
-            </Box>
+              <Tooltip label="Click to reset zoom to Fit (0)" withArrow>
+                <Button
+                  variant="subtle"
+                  size="compact-xs"
+                  c="white"
+                  px={6}
+                  onClick={() => {
+                    setZoom(1);
+                    setPanOffset({ x: 0, y: 0 });
+                  }}
+                  style={{ fontWeight: 600, fontSize: '0.78rem' }}
+                >
+                  {Math.round(zoom * 100)}%
+                </Button>
+              </Tooltip>
+
+              <Tooltip label="Zoom In (+)" withArrow>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size="sm"
+                  c="white"
+                  onClick={() => setZoom((z) => Math.min(5, +(z + 0.25).toFixed(2)))}
+                >
+                  <ZoomIn size={15} />
+                </ActionIcon>
+              </Tooltip>
+
+              <Box style={{ width: 1, height: 16, backgroundColor: 'rgba(255,255,255,0.2)', margin: '0 4px' }} />
+
+              {/* 3. Transform Segment: Rotate & Flip */}
+              <Tooltip label="Rotate 90° CCW" withArrow>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size="sm"
+                  c="white"
+                  onClick={() => setRotation((r) => (r - 90 + 360) % 360)}
+                >
+                  <RotateCcw size={15} />
+                </ActionIcon>
+              </Tooltip>
+
+              <Tooltip label="Rotate 90° CW (R)" withArrow>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size="sm"
+                  c="white"
+                  onClick={() => setRotation((r) => (r + 90) % 360)}
+                >
+                  <RotateCw size={15} />
+                </ActionIcon>
+              </Tooltip>
+
+              <Tooltip label={flipH ? 'Unflip Horizontal' : 'Flip Horizontally (H)'} withArrow>
+                <ActionIcon
+                  variant={flipH ? 'filled' : 'subtle'}
+                  color={flipH ? 'emerald' : 'gray'}
+                  size="sm"
+                  c="white"
+                  onClick={() => setFlipH((h) => !h)}
+                >
+                  <FlipHorizontal size={15} />
+                </ActionIcon>
+              </Tooltip>
+
+              <Tooltip label={flipV ? 'Unflip Vertical' : 'Flip Vertically'} withArrow>
+                <ActionIcon
+                  variant={flipV ? 'filled' : 'subtle'}
+                  color={flipV ? 'emerald' : 'gray'}
+                  size="sm"
+                  c="white"
+                  onClick={() => setFlipV((v) => !v)}
+                >
+                  <FlipVertical size={15} />
+                </ActionIcon>
+              </Tooltip>
+
+              <Tooltip label="Reset All Transforms" withArrow>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  size="sm"
+                  c="white"
+                  onClick={() => {
+                    setZoom(1);
+                    setRotation(0);
+                    setFlipH(false);
+                    setFlipV(false);
+                    setPanOffset({ x: 0, y: 0 });
+                  }}
+                >
+                  <RefreshCw size={14} />
+                </ActionIcon>
+              </Tooltip>
+
+              {/* 4. Filmstrip Toggle (if multiple images) */}
+              {imageFiles.length > 1 && (
+                <>
+                  <Box style={{ width: 1, height: 16, backgroundColor: 'rgba(255,255,255,0.2)', margin: '0 4px' }} />
+                  <Tooltip label={showFilmstrip ? 'Hide Thumbnails' : 'Show Thumbnails'} withArrow>
+                    <ActionIcon
+                      variant={showFilmstrip ? 'filled' : 'subtle'}
+                      color={showFilmstrip ? 'emerald' : 'gray'}
+                      size="sm"
+                      c="white"
+                      onClick={() => setShowFilmstrip(!showFilmstrip)}
+                    >
+                      <Layers size={15} />
+                    </ActionIcon>
+                  </Tooltip>
+                </>
+              )}
+            </Group>
           </Box>
         </Box>
       ) : isVideo ? (

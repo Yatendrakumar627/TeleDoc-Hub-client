@@ -415,8 +415,7 @@ export default function WordViewer({ document, content, onRenameFile, onCloseFil
                     <Tooltip label="Auto Fit to Width" withArrow>
                       <Button
                         size="compact-xs"
-                        variant={autoFitActive ? 'filled' : 'subtle'}
-                        color={autoFitActive ? 'emerald' : 'gray'}
+                        variant={autoFitActive ? 'light' : 'subtle'}
                         onClick={() => {
                           setAutoFitActive(true);
                           setZoom(fitScale);
@@ -426,8 +425,9 @@ export default function WordViewer({ document, content, onRenameFile, onCloseFil
                           fontSize: '11px',
                           fontWeight: 600,
                           borderRadius: '6px',
-                          backgroundColor: autoFitActive ? 'var(--brand-forest)' : 'transparent',
-                          color: autoFitActive ? '#ffffff' : 'var(--text-secondary)',
+                          backgroundColor: autoFitActive ? '#ecfdf5' : 'transparent',
+                          color: autoFitActive ? '#047857' : 'var(--text-secondary)',
+                          border: autoFitActive ? '1px solid #a7f3d0' : '1px solid transparent',
                           padding: '0 8px',
                         }}
                       >
@@ -570,9 +570,9 @@ export default function WordViewer({ document, content, onRenameFile, onCloseFil
                         fontWeight: 600,
                         textTransform: 'none',
                         borderRadius: '8px',
-                        backgroundColor: 'rgba(24, 88, 68, 0.08)',
-                        color: 'var(--brand-forest)',
-                        border: '1px solid rgba(24, 88, 68, 0.2)',
+                        backgroundColor: '#ecfdf5',
+                        color: '#065f46',
+                        border: '1px solid #a7f3d0',
                       }}
                     >
                       Vault Synced
@@ -590,9 +590,9 @@ export default function WordViewer({ document, content, onRenameFile, onCloseFil
                       height: 32,
                       fontWeight: 600,
                       borderRadius: '8px',
-                      backgroundColor: 'var(--brand-forest)',
+                      background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
                       color: '#ffffff',
-                      boxShadow: '0 2px 6px rgba(24, 88, 68, 0.2)',
+                      boxShadow: '0 2px 6px rgba(5, 150, 105, 0.25)',
                       transition: 'all 0.15s ease',
                     }}
                   >

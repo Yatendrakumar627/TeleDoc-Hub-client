@@ -37,11 +37,15 @@ import {
   Tag,
   GripVertical,
   ArrowUpDown,
+  CheckSquare,
+  FolderInput,
+  X,
+  AlertTriangle,
 } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
 import FileCard from '../library/FileCard';
 import { getCollections, reorderCollections } from '../../services/apiClient';
-import { extractDateFromName } from '../../utils/formatters';
+import { extractDateFromName, formatBytes } from '../../utils/formatters';
 
 export default function GroupHubView({
   group,
@@ -53,8 +57,19 @@ export default function GroupHubView({
   onDeleteGroup,
   onCreateCollectionInGroup,
   onAssignCollectionToGroup,
+  onBatchMoveFiles,
+  onBatchDeleteFiles,
 }) {
   const isMobile = useMediaQuery('(max-width: 768px)');
+
+  // Batch Multi-Select state
+  const [selectedFileIds, setSelectedFileIds] = useState([]);
+  const [batchMoveModalOpen, setBatchMoveModalOpen] = useState(false);
+  const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
+  const [targetMoveCollectionId, setTargetMoveCollectionId] = useState('');
+  const [allAvailableCollections, setAllAvailableCollections] = useState([]);
+  const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
+
   // Edit Modal State
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [name, setName] = useState(group.name || '');
@@ -179,6 +194,73 @@ export default function GroupHubView({
   const collections = group.collections || [];
   const documents = group.documents || [];
   const totalKB = (group.totalBytes || 0) / 1024;
+
+  // Batch Multi-Select Handlers
+  const handleToggleSelect = (fileId) => {
+    setSelectedFileIds((prev) =>
+      prev.includes(fileId) ? prev.filter((id) => id !== fileId) : [...prev, fileId]
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedFileIds.length === documents.length) {
+      setSelectedFileIds([]);
+    } else {
+      setSelectedFileIds(documents.map((d) => d.id));
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedFileIds([]);
+  };
+
+  const handleOpenBatchMove = async () => {
+    try {
+      const allCols = await getCollections('all');
+      setAllAvailableCollections(allCols);
+    } catch (err) {
+      console.warn('Failed to fetch collections for batch move:', err);
+    }
+    setTargetMoveCollectionId('');
+    setBatchMoveModalOpen(true);
+  };
+
+  const handleConfirmBatchMove = async () => {
+    if (selectedFileIds.length === 0 || !onBatchMoveFiles) return;
+    try {
+      setIsSubmittingBatch(true);
+      await onBatchMoveFiles(selectedFileIds, targetMoveCollectionId || null);
+      setSelectedFileIds([]);
+      setBatchMoveModalOpen(false);
+    } catch (err) {
+      console.error('Batch move error:', err);
+    } finally {
+      setIsSubmittingBatch(false);
+    }
+  };
+
+  const handleConfirmBatchDelete = async () => {
+    if (selectedFileIds.length === 0 || !onBatchDeleteFiles) return;
+    try {
+      setIsSubmittingBatch(true);
+      await onBatchDeleteFiles(selectedFileIds);
+      setSelectedFileIds([]);
+      setBatchDeleteModalOpen(false);
+    } catch (err) {
+      console.error('Batch delete error:', err);
+    } finally {
+      setIsSubmittingBatch(false);
+    }
+  };
+
+  const selectedFiles = useMemo(() => {
+    const idSet = new Set(selectedFileIds);
+    return documents.filter((f) => idSet.has(f.id));
+  }, [documents, selectedFileIds]);
+
+  const selectedBytes = useMemo(() => {
+    return selectedFiles.reduce((acc, f) => acc + (f.fileSize || 0), 0);
+  }, [selectedFiles]);
 
   // Sorting and Dragging Collections in Group
   const [colSortBy, setColSortBy] = useState('date-desc'); // 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'custom'
@@ -392,17 +474,17 @@ export default function GroupHubView({
             <Group gap="xs">
               <Select
                 size="xs"
-                leftSection={<ArrowUpDown size={13} style={{ color: 'var(--text-tertiary)' }} />}
+                leftSection={<ArrowUpDown size={13} style={{ color: 'var(--brand-emerald)' }} />}
                 value={colSortBy}
                 onChange={(val) => setColSortBy(val || 'date-desc')}
                 data={[
-                  { label: 'Date: Newest First', value: 'date-desc' },
-                  { label: 'Date: Oldest First', value: 'date-asc' },
+                  { label: 'Newest First (Date)', value: 'date-desc' },
+                  { label: 'Oldest First (Date)', value: 'date-asc' },
                   { label: 'Name (A - Z)', value: 'name-asc' },
                   { label: 'Name (Z - A)', value: 'name-desc' },
-                  { label: 'Custom (Draggable)', value: 'custom' },
+                  { label: 'Custom Drag Order', value: 'custom' },
                 ]}
-                comboboxProps={{ width: 185, withinPortal: true, shadow: 'md' }}
+                comboboxProps={{ width: 195, withinPortal: true, shadow: 'md' }}
                 styles={{
                   input: {
                     height: 32,
@@ -414,7 +496,8 @@ export default function GroupHubView({
                     backgroundColor: 'var(--surface-card)',
                     color: 'var(--text-primary)',
                   },
-                  option: { fontSize: '12px', whiteSpace: 'nowrap' },
+                  dropdown: { borderRadius: '8px', padding: '4px' },
+                  option: { fontSize: '12px', whiteSpace: 'nowrap', borderRadius: '6px' },
                 }}
               />
 
@@ -603,21 +686,51 @@ export default function GroupHubView({
 
         {/* SECTION 2: Member Direct Files */}
         <Box>
-          <Group justify="space-between" align="center" mb="md">
-            <Group gap="xs">
+          <Group justify="space-between" align="center" mb="md" wrap="wrap" gap="xs">
+            <Group gap="xs" align="center">
               <FileText size={20} color="#10b981" />
               <Title order={3} size="h4">
                 Direct Files in this Group ({documents.length})
               </Title>
+              {selectedFileIds.length > 0 && (
+                <Badge size="xs" variant="filled" color="emerald">
+                  {selectedFileIds.length} Selected
+                </Badge>
+              )}
             </Group>
-            <Button
-              variant="subtle"
-              size="xs"
-              leftSection={<UploadCloud size={14} />}
-              onClick={onOpenUpload}
-            >
-              Upload to Group
-            </Button>
+
+            <Group gap="sm" align="center">
+              {documents.length > 0 && (
+                <Checkbox
+                  size="xs"
+                  color="emerald"
+                  label={
+                    selectedFileIds.length === documents.length ? 'Deselect All' : 'Select All'
+                  }
+                  checked={documents.length > 0 && selectedFileIds.length === documents.length}
+                  indeterminate={selectedFileIds.length > 0 && selectedFileIds.length < documents.length}
+                  onChange={handleToggleSelectAll}
+                  styles={{
+                    label: {
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      color: selectedFileIds.length > 0 ? 'var(--brand-emerald)' : 'var(--text-secondary)',
+                    },
+                    input: { cursor: 'pointer' },
+                  }}
+                />
+              )}
+
+              <Button
+                variant="subtle"
+                size="xs"
+                leftSection={<UploadCloud size={14} />}
+                onClick={onOpenUpload}
+              >
+                Upload to Group
+              </Button>
+            </Group>
           </Group>
 
           {documents.length > 0 ? (
@@ -628,6 +741,8 @@ export default function GroupHubView({
                   document={doc}
                   doc={doc}
                   isSelected={false}
+                  isMultiSelected={selectedFileIds.includes(doc.id)}
+                  onToggleSelect={handleToggleSelect}
                   hideGroupBadge={true}
                   onSelect={onSelectFile}
                   onDelete={onDeleteFile}
@@ -851,6 +966,210 @@ export default function GroupHubView({
               </Group>
             </Stack>
           )}
+        </Stack>
+      </Modal>
+
+      {/* Floating Luxury Batch Action Bar */}
+      {selectedFileIds.length > 0 && (
+        <Paper
+          shadow="xl"
+          radius="xl"
+          p="xs"
+          withBorder
+          style={{
+            position: 'fixed',
+            bottom: isMobile ? 16 : 28,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            backgroundColor: 'rgba(15, 23, 42, 0.94)',
+            backdropFilter: 'blur(12px)',
+            borderColor: 'rgba(255, 255, 255, 0.15)',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
+            animation: 'fadeInUp 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            minWidth: isMobile ? 'calc(100vw - 32px)' : 420,
+            maxWidth: 580,
+          }}
+        >
+          <Group gap={isMobile ? 'xs' : 'md'} wrap="nowrap" px="xs" justify="space-between">
+            {/* Selection Info */}
+            <Group gap={6} wrap="nowrap">
+              <CheckSquare size={16} color="#34d399" />
+              <Badge
+                variant="filled"
+                color="emerald"
+                size="sm"
+                style={{ fontWeight: 700, borderRadius: '6px' }}
+              >
+                {selectedFileIds.length} {selectedFileIds.length === 1 ? 'file' : 'files'}
+              </Badge>
+              {!isMobile && (
+                <Text size="xs" style={{ color: '#94a3b8' }}>
+                  ({formatBytes(selectedBytes)})
+                </Text>
+              )}
+            </Group>
+
+            {/* Quick Actions */}
+            <Group gap="xs" wrap="nowrap">
+              <Button
+                size="xs"
+                variant="light"
+                color="blue"
+                leftSection={<FolderInput size={13} />}
+                onClick={handleOpenBatchMove}
+                style={{
+                  borderRadius: '999px',
+                  fontWeight: 600,
+                  backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                  color: '#93c5fd',
+                  border: '1px solid rgba(59, 130, 246, 0.4)',
+                }}
+              >
+                Move
+              </Button>
+
+              <Button
+                size="xs"
+                variant="filled"
+                color="red"
+                leftSection={<Trash2 size={13} />}
+                onClick={() => setBatchDeleteModalOpen(true)}
+                style={{
+                  borderRadius: '999px',
+                  fontWeight: 600,
+                  backgroundColor: '#dc2626',
+                  boxShadow: '0 2px 8px rgba(220, 38, 38, 0.4)',
+                }}
+              >
+                Delete
+              </Button>
+
+              <ActionIcon
+                size="28px"
+                radius="xl"
+                variant="subtle"
+                color="gray"
+                onClick={handleClearSelection}
+                title="Deselect all (Esc)"
+                style={{ color: '#94a3b8' }}
+              >
+                <X size={14} />
+              </ActionIcon>
+            </Group>
+          </Group>
+        </Paper>
+      )}
+
+      {/* Batch Move Modal */}
+      <Modal
+        opened={batchMoveModalOpen}
+        onClose={() => setBatchMoveModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <FolderInput size={18} color="#0284c7" />
+            <Text fw={700} size="sm">
+              Move {selectedFileIds.length} Files to Folder
+            </Text>
+          </Group>
+        }
+        centered
+        radius="md"
+        size="md"
+      >
+        <Stack gap="md">
+          <Text size="xs" c="dimmed">
+            Select a target collection or move files to the unassigned Inbox. All database links and Telegram cloud blobs remain intact.
+          </Text>
+
+          <Select
+            label="Destination Collection"
+            placeholder="Choose target folder or unassigned"
+            data={[
+              { label: '📥 Inbox (Unassigned / No Folder)', value: '' },
+              ...allAvailableCollections.map((c) => ({
+                label: `📁 ${c.name} (${c.scope || 'professional'})`,
+                value: c.id,
+              })),
+            ]}
+            value={targetMoveCollectionId}
+            onChange={(val) => setTargetMoveCollectionId(val || '')}
+            comboboxProps={{ withinPortal: true, shadow: 'md' }}
+          />
+
+          <Paper p="xs" radius="md" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+            <Text size="11px" fw={600} c="dimmed" mb={4}>
+              Files being moved ({selectedFiles.length}):
+            </Text>
+            <Stack gap={3} mah={140} style={{ overflowY: 'auto' }}>
+              {selectedFiles.map((f) => (
+                <Text key={f.id} size="11px" truncate style={{ color: '#334155' }}>
+                  • {f.title || f.filename}
+                </Text>
+              ))}
+            </Stack>
+          </Paper>
+
+          <Group justify="flex-end" gap="xs" mt="md">
+            <Button variant="default" onClick={() => setBatchMoveModalOpen(false)} disabled={isSubmittingBatch}>
+              Cancel
+            </Button>
+            <Button
+              color="emerald"
+              loading={isSubmittingBatch}
+              onClick={handleConfirmBatchMove}
+              style={{ backgroundColor: 'var(--brand-emerald)', color: '#ffffff' }}
+            >
+              Move {selectedFileIds.length} Files
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Batch Delete Confirmation Modal */}
+      <Modal
+        opened={batchDeleteModalOpen}
+        onClose={() => setBatchDeleteModalOpen(false)}
+        title={
+          <Group gap="xs">
+            <AlertTriangle size={18} color="#ef4444" />
+            <Text fw={700} size="sm" c="red">
+              Permanently Delete {selectedFileIds.length} Files?
+            </Text>
+          </Group>
+        }
+        centered
+        radius="md"
+        size="md"
+      >
+        <Stack gap="md">
+          <Paper p="sm" radius="md" style={{ backgroundColor: '#fef2f2', border: '1px solid #fee2e2' }}>
+            <Text size="xs" c="red" fw={600}>
+              ⚠️ Warning: This will permanently delete {selectedFileIds.length} files ({formatBytes(selectedBytes)}) from both the database and encrypted Telegram storage.
+            </Text>
+          </Paper>
+
+          <Paper p="xs" radius="md" style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+            <Text size="11px" fw={600} c="dimmed" mb={4}>
+              Items to be deleted:
+            </Text>
+            <Stack gap={3} mah={140} style={{ overflowY: 'auto' }}>
+              {selectedFiles.map((f) => (
+                <Text key={f.id} size="11px" truncate style={{ color: '#475569' }}>
+                  • {f.title || f.filename}
+                </Text>
+              ))}
+            </Stack>
+          </Paper>
+
+          <Group justify="flex-end" gap="xs" mt="md">
+            <Button variant="default" onClick={() => setBatchDeleteModalOpen(false)} disabled={isSubmittingBatch}>
+              Cancel
+            </Button>
+            <Button color="red" loading={isSubmittingBatch} onClick={handleConfirmBatchDelete}>
+              Permanently Delete {selectedFileIds.length} Files
+            </Button>
+          </Group>
         </Stack>
       </Modal>
     </Box>

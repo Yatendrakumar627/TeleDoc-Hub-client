@@ -25,6 +25,12 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    resolve: {
+      dedupe: ['react', 'react-dom'],
+    },
+    optimizeDeps: {
+      include: ['react', 'react-dom', '@mantine/core', '@mantine/hooks'],
+    },
     server,
   };
 });

@@ -46,7 +46,19 @@ export default function SearchFilterInput({
             <X size={12} />
           </ActionIcon>
         ) : (
-          <Kbd size="xs" style={{ fontSize: '9px', padding: '1px 4px', color: 'var(--text-muted)' }}>
+          <Kbd
+            size="xs"
+            visibleFrom="sm"
+            style={{
+              fontSize: '9px',
+              padding: '1px 5px',
+              color: 'var(--text-muted)',
+              backgroundColor: 'var(--surface-sunken)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '4px',
+              userSelect: 'none',
+            }}
+          >
             Ctrl K
           </Kbd>
         )
