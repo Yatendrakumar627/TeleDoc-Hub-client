@@ -49,6 +49,14 @@ export const extractErrorMessage = (err, fallback = 'An unexpected error occurre
     return 'Upload processing took longer than expected. Your files may already be securely saving in the background. Please check your vault.';
   }
 
+  // Handle browser CORS / Cold-Start network errors gracefully
+  if (
+    err.code === 'ERR_NETWORK' ||
+    (typeof err.message === 'string' && err.message.toLowerCase() === 'network error')
+  ) {
+    return 'Server waking up or network unavailable. Render free instances sleep after inactivity — please wait 15 seconds and try again.';
+  }
+
   const data = err.response?.data;
   if (data) {
     if (typeof data.error === 'string') return data.error;

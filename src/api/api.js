@@ -32,9 +32,6 @@ export const uploadDocument = async (file, onProgress = null, options = {}) => {
   if (options.collectionName) formData.append('collectionName', options.collectionName);
 
   const res = await API.post('/upload', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
     onUploadProgress: (progressEvent) => {
       if (onProgress && progressEvent.total) {
         const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);

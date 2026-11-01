@@ -104,9 +104,6 @@ export const uploadDocument = async (fileOrFiles, onProgress = null, options = {
   const dynamicTimeout = Math.max(UPLOAD_TIMEOUT, fileList.length * 60000);
 
   const res = await apiClient.post('/documents/upload', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
     timeout: dynamicTimeout,
     onUploadProgress: (progressEvent) => {
       if (onProgress && progressEvent.total) {
