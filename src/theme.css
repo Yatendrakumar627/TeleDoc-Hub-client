@@ -593,5 +593,16 @@ body {
   opacity: 1 !important;
 }
 
+/* -------------------------------------------------------------------------
+   19. AppShell Main Responsive Offset Safeguards
+   ------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .mantine-AppShell-main {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+
 
 

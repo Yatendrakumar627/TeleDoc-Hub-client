@@ -217,7 +217,7 @@ export default function Topbar({
               </Tooltip>
             )}
 
-            <Box style={{ flex: 1 }}>
+            <Box style={{ flex: 1, minWidth: 160 }}>
               <GoogleLinkInput
                 onIngest={onIngestGoogleLink}
                 loading={isIngesting}

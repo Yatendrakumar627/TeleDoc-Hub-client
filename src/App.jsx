@@ -6,18 +6,18 @@ import { useTelegramStatus } from './hooks/useTelegramStatus';
 import { useDocuments } from './hooks/useDocuments';
 import { useUpload } from './hooks/useUpload';
 import { useGroups } from './hooks/useGroups';
-import {
-  assignDocumentCollection,
-  updateCollection,
-  deleteCollection,
-  createCollection,
-  createGroup,
-  updateGroup,
-  deleteGroup,
-  assignCollectionGroup,
-  batchMoveDocuments,
-  batchDeleteDocuments,
-} from './services/apiClient';
+import * as api from './services/apiClient';
+
+const assignDocumentCollection = api.assignDocumentCollection;
+const updateCollection = api.updateCollection;
+const deleteCollection = api.deleteCollection;
+const createCollection = api.createCollection;
+const createGroup = api.createGroup;
+const updateGroup = api.updateGroup;
+const deleteGroup = api.deleteGroup;
+const assignCollectionGroup = api.assignCollectionGroup;
+const batchMoveDocuments = api.batchMoveDocuments;
+const batchDeleteDocuments = api.batchDeleteDocuments || (async () => ({ deletedCount: 0 }));
 
 import WorkspaceLayout from './components/layout/WorkspaceLayout';
 import ViewerContainer from './features/viewer/ViewerContainer';

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Stack,
@@ -179,6 +179,12 @@ export default function EmptyState({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
+  const [displayLimit, setDisplayLimit] = useState(24);
+
+  // Progressive paging reset when filters change
+  useEffect(() => {
+    setDisplayLimit(24);
+  }, [selectedCategory, searchQuery]);
 
   const token = localStorage.getItem('teledoc_vault_jwt') || '';
 
@@ -663,8 +669,9 @@ export default function EmptyState({
 
           {/* Files Grid (1-Click Open) */}
           {filteredDocuments.length > 0 ? (
-            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="sm">
-              {filteredDocuments.slice(0, 12).map((doc) => {
+            <>
+              <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="sm">
+              {filteredDocuments.slice(0, displayLimit).map((doc) => {
                 const downloadUrl = `${API_BASE_URL}/documents/${doc.id}/download`;
                 const dateDisplay = doc.createdAt ? formatDate(doc.createdAt) : null;
                 const ext = (doc.filename || doc.title || '').split('.').pop().toUpperCase();
@@ -788,7 +795,36 @@ export default function EmptyState({
                 );
               })}
             </SimpleGrid>
-          ) : (
+
+            {/* Progressive Load / Pagination for Large Vaults */}
+            {filteredDocuments.length > displayLimit && (
+              <Group justify="center" gap="sm" mt="md">
+                <Button
+                  variant="light"
+                  color="emerald"
+                  radius="md"
+                  size="sm"
+                  onClick={() => setDisplayLimit((prev) => prev + 24)}
+                  style={{
+                    fontWeight: 600,
+                    backgroundColor: 'var(--surface-selected)',
+                    border: '1px solid var(--brand-primary-border)',
+                  }}
+                >
+                  Load More Files ({filteredDocuments.length - displayLimit} remaining)
+                </Button>
+                <Button
+                  variant="subtle"
+                  color="gray"
+                  size="xs"
+                  onClick={() => setDisplayLimit(filteredDocuments.length)}
+                >
+                  Show All ({filteredDocuments.length})
+                </Button>
+              </Group>
+            )}
+          </>
+        ) : (
             <Paper p="xl" radius="md" withBorder ta="center" style={{ backgroundColor: '#ffffff' }}>
               <Text size="sm" fw={600} c="dimmed">
                 No matching documents found in this view.

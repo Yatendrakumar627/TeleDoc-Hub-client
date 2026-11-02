@@ -169,3 +169,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </MantineProvider>
   </React.StrictMode>
 );
+
+// Signal successful mount to startup guard and reset auto-reload counter
+window.__teledocMounted = true;
+try {
+  sessionStorage.removeItem('teledoc_startup_reload_count');
+} catch (e) {}

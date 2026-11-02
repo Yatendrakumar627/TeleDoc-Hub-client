@@ -169,7 +169,7 @@ export default function WorkspaceLayout({
     <AppShell
       padding={0}
       navbar={{
-        width: isMobile ? 'min(315px, 80vw)' : sidebarWidth,
+        width: sidebarWidth,
         breakpoint: 'sm',
         collapsed: { desktop: !sidebarOpened, mobile: !sidebarOpened },
       }}
@@ -181,7 +181,7 @@ export default function WorkspaceLayout({
           borderRight: '1px solid var(--border-subtle)',
           overflow: 'hidden',
           zIndex: 100,
-          width: isMobile ? 'min(315px, 80vw) !important' : `${sidebarWidth}px !important`,
+          width: isMobile ? 'min(315px, 82vw) !important' : `${sidebarWidth}px !important`,
           maxWidth: isMobile ? '82vw !important' : `${sidebarWidth}px !important`,
           transition: isResizing ? 'none !important' : 'width 0.2s ease, transform 0.2s ease !important',
           boxShadow: isMobile && sidebarOpened ? '12px 0 35px rgba(16, 47, 39, 0.35)' : undefined,
@@ -190,8 +190,13 @@ export default function WorkspaceLayout({
         main: {
           backgroundColor: 'var(--surface-app)',
           minHeight: '100vh',
+          paddingLeft: isMobile ? 0 : (sidebarOpened ? `${sidebarWidth}px` : 0),
+          paddingRight: 0,
+          paddingTop: 0,
+          paddingBottom: 0,
           transition: isResizing ? 'none !important' : 'padding-left 0.2s ease !important',
-          padding: 0,
+          boxSizing: 'border-box',
+          width: '100%',
         },
       }}
     >

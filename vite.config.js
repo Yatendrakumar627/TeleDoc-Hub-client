@@ -11,13 +11,6 @@ export default defineConfig(({ mode }) => {
   const server = {
     port: devPort,
     host: true,
-    headers: {
-      'Cache-Control': 'no-store, no-cache, must-revalidate',
-    },
-    hmr: {
-      host: 'localhost',
-      port: devPort,
-    },
   };
 
   // Only proxy when the API base is a relative path such as "/api".
