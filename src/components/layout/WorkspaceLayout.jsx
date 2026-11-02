@@ -178,7 +178,7 @@ export default function WorkspaceLayout({
         navbar: {
           backgroundColor: 'var(--surface-sidebar)',
           borderRight: '1px solid var(--border-subtle)',
-          overflow: 'visible',
+          overflow: 'hidden',
           zIndex: 100,
           width: isMobile ? 'min(315px, 80vw) !important' : `${sidebarWidth}px !important`,
           maxWidth: isMobile ? '82vw !important' : `${sidebarWidth}px !important`,
@@ -193,7 +193,7 @@ export default function WorkspaceLayout({
         },
       }}
     >
-      <AppShell.Navbar style={{ position: 'relative' }}>
+      <AppShell.Navbar>
         <Sidebar
           {...sidebarProps}
           onSelectDoc={handleSelectDoc}
@@ -217,8 +217,8 @@ export default function WorkspaceLayout({
             style={{
               position: 'absolute',
               top: 0,
-              right: -5,
-              width: 10,
+              right: 0,
+              width: 8,
               height: '100%',
               cursor: 'col-resize',
               zIndex: 120,
@@ -247,7 +247,7 @@ export default function WorkspaceLayout({
                 style={{
                   position: 'absolute',
                   top: '50%',
-                  right: -60,
+                  right: 14,
                   transform: 'translateY(-50%)',
                   backgroundColor: 'var(--brand-forest, #102F27)',
                   color: '#ffffff',
