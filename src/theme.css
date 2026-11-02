@@ -546,5 +546,21 @@ body {
   transition: opacity 0.15s ease, color 0.15s ease;
 }
 
+/* -------------------------------------------------------------------------
+   17. Dynamic Resizable Sidebar Handle
+   ------------------------------------------------------------------------- */
+.sidebar-resizer-handle {
+  touch-action: none;
+}
+
+.sidebar-resizer-handle:hover .sidebar-resizer-line {
+  background-color: rgba(24, 88, 68, 0.45) !important;
+}
+
+.sidebar-resizer-handle.is-resizing .sidebar-resizer-line {
+  background-color: var(--brand-emerald, #185844) !important;
+  box-shadow: 0 0 10px rgba(24, 88, 68, 0.55) !important;
+}
+
 
 
