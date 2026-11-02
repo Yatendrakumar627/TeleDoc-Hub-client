@@ -45,13 +45,20 @@ import {
   Check,
   Home,
   ChevronRight,
+  LayoutGrid,
+  List,
+  Image as ImageIcon,
+  Film,
+  SlidersHorizontal,
+  Filter,
 } from 'lucide-react';
 import { notifications } from '@mantine/notifications';
 import SourceBadge from '../../components/ui/SourceBadge';
 import { formatBytes, extractDateFromName } from '../../utils/formatters';
 import { getDocTypeMeta } from '../../utils/docTypes';
 import { API_BASE_URL } from '../../config';
-import { reorderDocuments, getCollections } from '../../services/apiClient';
+import { reorderDocuments, getCollections, getStoredToken } from '../../services/apiClient';
+import GalleryMediaCard, { isImageFile, isVideoFile, isMediaFile } from './GalleryMediaCard';
 
 /**
  * Authentic Document Brand Icon (Word, PDF, Excel, PPT, Media)
@@ -221,6 +228,12 @@ export default function CollectionHubView({
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
+  // Authentication Token for decrypted media streaming
+  const [token, setToken] = useState(() => getStoredToken() || '');
+  useEffect(() => {
+    setToken(getStoredToken() || '');
+  }, []);
+
   // Multi-Selection State for Batch Operations
   const [selectedFileIds, setSelectedFileIds] = useState([]);
   const [batchMoveModalOpen, setBatchMoveModalOpen] = useState(false);
@@ -229,8 +242,18 @@ export default function CollectionHubView({
   const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
   const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
 
+  // View Mode: 'gallery' (Visual Photo & Video Grid) vs 'cards' (Detailed Document Cards)
+  const [viewMode, setViewMode] = useState(() => {
+    const saved = localStorage.getItem('teledoc_collection_view_mode');
+    if (saved === 'gallery' || saved === 'cards') return saved;
+    return 'gallery';
+  });
+
+  // Media Filter: 'all' | 'images' | 'videos' | 'documents'
+  const [mediaFilter, setMediaFilter] = useState('all');
+
   // Sorting and Dragging State
-  const [fileSortBy, setFileSortBy] = useState('date-desc'); // 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'custom'
+  const [fileSortBy, setFileSortBy] = useState('date-desc'); // 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc' | 'size-desc' | 'size-asc' | 'custom'
   const [orderedFiles, setOrderedFiles] = useState(files);
   const [draggedFileId, setDraggedFileId] = useState(null);
   const [dropTargetFileId, setDropTargetFileId] = useState(null);
@@ -245,6 +268,31 @@ export default function CollectionHubView({
   useEffect(() => {
     setSelectedFileIds([]);
   }, [collection?.id]);
+
+  // Media statistics
+  const imageFilesCount = useMemo(() => files.filter(isImageFile).length, [files]);
+  const videoFilesCount = useMemo(() => files.filter(isVideoFile).length, [files]);
+  const totalMediaCount = imageFilesCount + videoFilesCount;
+
+  const totalMediaBytes = useMemo(() => {
+    return files
+      .filter(isMediaFile)
+      .reduce((acc, f) => acc + (f.fileSize || 0), 0);
+  }, [files]);
+
+  // Dynamic media subtitle matching Mockup (e.g. "8 images • 3.2 MB")
+  const mediaSubtitle = useMemo(() => {
+    if (imageFilesCount > 0 && videoFilesCount > 0) {
+      return `${imageFilesCount} ${imageFilesCount === 1 ? 'image' : 'images'}, ${videoFilesCount} ${videoFilesCount === 1 ? 'video' : 'videos'} • ${formatBytes(totalMediaBytes)}`;
+    }
+    if (imageFilesCount > 0) {
+      return `${imageFilesCount} ${imageFilesCount === 1 ? 'image' : 'images'} • ${formatBytes(totalMediaBytes)}`;
+    }
+    if (videoFilesCount > 0) {
+      return `${videoFilesCount} ${videoFilesCount === 1 ? 'video' : 'videos'} • ${formatBytes(totalMediaBytes)}`;
+    }
+    return `${files.length} ${files.length === 1 ? 'file' : 'files'} • ${formatBytes(totalBytes)}`;
+  }, [imageFilesCount, videoFilesCount, totalMediaBytes, files.length, totalBytes]);
 
   // Esc keyboard shortcut to clear selection
   useEffect(() => {
@@ -261,11 +309,21 @@ export default function CollectionHubView({
 
   useEffect(() => {
     setCollectionDisplayLimit(36);
-  }, [collection?.id, fileSortBy]);
+  }, [collection?.id, fileSortBy, mediaFilter]);
 
-  // Sort files according to chosen mode with pre-calculated date metadata (eliminates regex during drag/render)
+  // Sort and filter files according to chosen mode and filter
   const displayedFilesWithMeta = useMemo(() => {
-    const list = [...orderedFiles];
+    let list = [...orderedFiles];
+
+    // Filter by media category
+    if (mediaFilter === 'images') {
+      list = list.filter(isImageFile);
+    } else if (mediaFilter === 'videos') {
+      list = list.filter(isVideoFile);
+    } else if (mediaFilter === 'documents') {
+      list = list.filter((f) => !isMediaFile(f));
+    }
+
     let sorted = list;
     if (fileSortBy === 'date-desc') {
       sorted = list.sort((a, b) => {
@@ -297,6 +355,10 @@ export default function CollectionHubView({
           { numeric: true, sensitivity: 'base' }
         )
       );
+    } else if (fileSortBy === 'size-desc') {
+      sorted = list.sort((a, b) => (b.fileSize || 0) - (a.fileSize || 0));
+    } else if (fileSortBy === 'size-asc') {
+      sorted = list.sort((a, b) => (a.fileSize || 0) - (b.fileSize || 0));
     }
 
     return sorted.map((file) => {
@@ -318,7 +380,7 @@ export default function CollectionHubView({
         extLabel,
       };
     });
-  }, [orderedFiles, fileSortBy]);
+  }, [orderedFiles, fileSortBy, mediaFilter]);
 
   // Handle Drag & Drop reordering in the grid
   const handleFileDrop = async (targetFileId, position) => {
@@ -449,6 +511,11 @@ export default function CollectionHubView({
     setBatchMoveModalOpen(true);
   };
 
+  const handleMoveSingleFile = (fileId) => {
+    setSelectedFileIds([fileId]);
+    handleOpenBatchMove();
+  };
+
   const handleConfirmBatchMove = async () => {
     if (selectedFileIds.length === 0 || !onBatchMoveFiles) return;
     try {
@@ -487,7 +554,7 @@ export default function CollectionHubView({
   }, [selectedFiles]);
 
   return (
-    <Box p={isMobile ? 'xs' : 'lg'} style={{ maxWidth: 1040, margin: '0 auto', width: '100%' }}>
+    <Box p={isMobile ? 'xs' : 'lg'} style={{ maxWidth: 1180, margin: '0 auto', width: '100%' }}>
       {/* 1-Click Back to Main Page Breadcrumb Navigation */}
       {onNavigateHome && (
         <Group gap={6} mb="sm" align="center">
@@ -620,75 +687,246 @@ export default function CollectionHubView({
         </Stack>
       </Paper>
 
-      {/* Files Grid Header with Selection, Sorting and Indicators */}
-      <Group justify="space-between" align="center" mb="md" px={4} wrap="wrap" gap="xs">
-        <Group gap="xs" align="center">
-          <Text fw={700} size="xs" tt="uppercase" style={{ color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>
-            Files in this collection ({files.length})
-          </Text>
-          {fileSortBy === 'custom' && (
-            <Badge size="xs" variant="light" color="gold" leftSection={<GripVertical size={11} />}>
-              Custom Drag Order
-            </Badge>
-          )}
-          {selectedFileIds.length > 0 && (
-            <Badge size="xs" variant="filled" color="emerald">
-              {selectedFileIds.length} Selected
-            </Badge>
-          )}
+      {/* Visual Header Section (Exact Match to Mockup Image 2) */}
+      <Group justify="space-between" align="center" mb="lg" px={4} wrap="wrap" gap="md">
+        {/* Left Side: Green Rounded Brand Icon + Title + Dynamic Subtitle */}
+        <Group gap="sm" align="center" wrap="nowrap">
+          <Box
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              backgroundColor: '#eaf7ee',
+              border: '1px solid rgba(24, 88, 68, 0.18)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--brand-emerald, #185844)',
+              boxShadow: '0 2px 6px rgba(24, 88, 68, 0.08)',
+              flexShrink: 0,
+            }}
+          >
+            <ImageIcon size={22} strokeWidth={2.2} />
+          </Box>
+          <Box>
+            <Title
+              order={2}
+              style={{
+                fontSize: isMobile ? '18px' : '22px',
+                fontWeight: 800,
+                color: '#0f172a',
+                letterSpacing: '-0.02em',
+                lineHeight: 1.2,
+              }}
+            >
+              Media Gallery
+            </Title>
+            <Group gap={6} align="center" mt={2} wrap="wrap">
+              <Text size="xs" fw={500} style={{ color: '#64748b' }}>
+                {mediaSubtitle}
+              </Text>
+              {mediaFilter !== 'all' && (
+                <Badge size="xs" variant="light" color="emerald" style={{ textTransform: 'capitalize' }}>
+                  Filter: {mediaFilter}
+                </Badge>
+              )}
+              {fileSortBy === 'custom' && (
+                <Badge size="xs" variant="light" color="gold" leftSection={<GripVertical size={10} />}>
+                  Custom Drag Order
+                </Badge>
+              )}
+              {selectedFileIds.length > 0 && (
+                <Badge size="xs" variant="filled" color="emerald">
+                  {selectedFileIds.length} Selected
+                </Badge>
+              )}
+            </Group>
+          </Box>
         </Group>
 
-        <Group gap="sm" align="center" wrap="nowrap" style={{ width: isMobile ? '100%' : 'auto', justifyContent: isMobile ? 'space-between' : 'flex-end' }}>
-          {files.length > 0 && (
-            <Checkbox
-              size="xs"
-              color="emerald"
+        {/* Right Side: View Mode Switcher + Sort Select + Filter Button */}
+        <Group
+          gap="xs"
+          align="center"
+          wrap="nowrap"
+          style={{
+            width: isMobile ? '100%' : 'auto',
+            justifyContent: isMobile ? 'space-between' : 'flex-end',
+          }}
+        >
+          {/* View Mode Toggle: Grid (Image 2) vs List (Image 1) */}
+          <Group
+            gap={3}
+            p={3}
+            style={{
+              backgroundColor: '#f1f5f9',
+              borderRadius: 10,
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            <Tooltip label="Gallery View (Visual Photos & Videos)" position="top" withArrow>
+              <ActionIcon
+                size="30px"
+                radius="md"
+                variant={viewMode === 'gallery' ? 'filled' : 'subtle'}
+                style={{
+                  backgroundColor: viewMode === 'gallery' ? 'var(--brand-emerald, #185844)' : 'transparent',
+                  color: viewMode === 'gallery' ? '#ffffff' : '#64748b',
+                  boxShadow: viewMode === 'gallery' ? '0 2px 5px rgba(24, 88, 68, 0.25)' : 'none',
+                }}
+                onClick={() => {
+                  setViewMode('gallery');
+                  localStorage.setItem('teledoc_collection_view_mode', 'gallery');
+                }}
+              >
+                <LayoutGrid size={16} />
+              </ActionIcon>
+            </Tooltip>
+            <Tooltip label="Document Cards View (Detailed List)" position="top" withArrow>
+              <ActionIcon
+                size="30px"
+                radius="md"
+                variant={viewMode === 'cards' ? 'filled' : 'subtle'}
+                style={{
+                  backgroundColor: viewMode === 'cards' ? 'var(--brand-emerald, #185844)' : 'transparent',
+                  color: viewMode === 'cards' ? '#ffffff' : '#64748b',
+                  boxShadow: viewMode === 'cards' ? '0 2px 5px rgba(24, 88, 68, 0.25)' : 'none',
+                }}
+                onClick={() => {
+                  setViewMode('cards');
+                  localStorage.setItem('teledoc_collection_view_mode', 'cards');
+                }}
+              >
+                <List size={17} />
+              </ActionIcon>
+            </Tooltip>
+          </Group>
+
+          {/* Sort Dropdown Matching Mockup: "Date: Newest First" */}
+          <Box style={{ width: isMobile ? 'auto' : 190, flex: isMobile ? 1 : 'none' }}>
+            <Select
+              size="sm"
+              leftSection={<SlidersHorizontal size={14} color="#64748b" />}
+              value={fileSortBy}
+              onChange={(val) => setFileSortBy(val || 'date-desc')}
+              data={[
+                { label: 'Date: Newest First', value: 'date-desc' },
+                { label: 'Date: Oldest First', value: 'date-asc' },
+                { label: 'Name: A to Z', value: 'name-asc' },
+                { label: 'Name: Z to A', value: 'name-desc' },
+                { label: 'Size: Largest First', value: 'size-desc' },
+                { label: 'Size: Smallest First', value: 'size-asc' },
+                { label: 'Custom Drag Order', value: 'custom' },
+              ]}
+              comboboxProps={{ width: isMobile ? '100%' : 190, withinPortal: true, shadow: 'md' }}
+              style={{ width: '100%' }}
+              styles={{
+                input: {
+                  height: 36,
+                  minHeight: 36,
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  borderRadius: '9px',
+                  borderColor: '#e2e8f0',
+                  backgroundColor: '#ffffff',
+                  color: '#0f172a',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                },
+                dropdown: { borderRadius: '9px', padding: '4px' },
+                option: { fontSize: '12px', whiteSpace: 'nowrap', borderRadius: '6px' },
+              }}
+            />
+          </Box>
+
+          {/* Filter Action Icon Menu */}
+          <Menu shadow="md" width={190} position="bottom-end" withinPortal>
+            <Menu.Target>
+              <Tooltip label="Filter Media & Files" position="top" withArrow>
+                <ActionIcon
+                  size="36px"
+                  variant="default"
+                  radius="md"
+                  style={{
+                    borderRadius: 9,
+                    borderColor: mediaFilter !== 'all' ? 'var(--brand-emerald, #185844)' : '#e2e8f0',
+                    backgroundColor: mediaFilter !== 'all' ? '#eaf7ee' : '#ffffff',
+                    color: mediaFilter !== 'all' ? 'var(--brand-emerald, #185844)' : '#64748b',
+                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                  }}
+                >
+                  <Filter size={16} />
+                </ActionIcon>
+              </Tooltip>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Label>Filter Items</Menu.Label>
+              <Menu.Item
+                leftSection={<LayoutGrid size={14} />}
+                rightSection={mediaFilter === 'all' && <Check size={14} color="#185844" strokeWidth={2.5} />}
+                onClick={() => setMediaFilter('all')}
+              >
+                All Files ({files.length})
+              </Menu.Item>
+              <Menu.Item
+                leftSection={<ImageIcon size={14} />}
+                rightSection={mediaFilter === 'images' && <Check size={14} color="#185844" strokeWidth={2.5} />}
+                onClick={() => setMediaFilter('images')}
+              >
+                Photos / Images ({imageFilesCount})
+              </Menu.Item>
+              <Menu.Item
+                leftSection={<Film size={14} />}
+                rightSection={mediaFilter === 'videos' && <Check size={14} color="#185844" strokeWidth={2.5} />}
+                onClick={() => setMediaFilter('videos')}
+              >
+                Videos ({videoFilesCount})
+              </Menu.Item>
+              <Menu.Item
+                leftSection={<FileText size={14} />}
+                rightSection={mediaFilter === 'documents' && <Check size={14} color="#185844" strokeWidth={2.5} />}
+                onClick={() => setMediaFilter('documents')}
+              >
+                Documents ({Math.max(0, files.length - totalMediaCount)})
+              </Menu.Item>
+              {mediaFilter !== 'all' && (
+                <>
+                  <Menu.Divider />
+                  <Menu.Item color="red" leftSection={<X size={14} />} onClick={() => setMediaFilter('all')}>
+                    Reset Filter
+                  </Menu.Item>
+                </>
+              )}
+            </Menu.Dropdown>
+          </Menu>
+
+          {/* Quick Select All / Deselect All Toggle */}
+          {displayedFilesWithMeta.length > 0 && (
+            <Tooltip
               label={
                 displayedFilesWithMeta.length > 0 && selectedFileIds.length === displayedFilesWithMeta.length
                   ? 'Deselect All'
                   : 'Select All'
               }
-              checked={displayedFilesWithMeta.length > 0 && selectedFileIds.length === displayedFilesWithMeta.length}
-              indeterminate={selectedFileIds.length > 0 && selectedFileIds.length < displayedFilesWithMeta.length}
-              onChange={handleToggleSelectAll}
-              styles={{
-                label: { fontSize: '12px', fontWeight: 600, cursor: 'pointer', color: selectedFileIds.length > 0 ? 'var(--brand-emerald)' : 'var(--text-secondary)' },
-                input: { cursor: 'pointer' },
-              }}
-            />
+              position="top"
+              withArrow
+            >
+              <ActionIcon
+                size="36px"
+                variant="default"
+                radius="md"
+                onClick={handleToggleSelectAll}
+                style={{
+                  borderRadius: 9,
+                  borderColor: selectedFileIds.length > 0 ? 'var(--brand-emerald, #185844)' : '#e2e8f0',
+                  backgroundColor: selectedFileIds.length > 0 ? '#eaf7ee' : '#ffffff',
+                  color: selectedFileIds.length > 0 ? 'var(--brand-emerald, #185844)' : '#64748b',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+                }}
+              >
+                <Check size={16} strokeWidth={selectedFileIds.length > 0 ? 3 : 2} />
+              </ActionIcon>
+            </Tooltip>
           )}
-
-          <Box style={{ width: isMobile ? 'auto' : 195, flex: isMobile ? 1 : 'none' }}>
-            <Select
-              size="xs"
-              leftSection={<ArrowUpDown size={13} style={{ color: 'var(--brand-emerald)' }} />}
-              value={fileSortBy}
-              onChange={(val) => setFileSortBy(val || 'date-desc')}
-              data={[
-                { label: 'Newest First (Date)', value: 'date-desc' },
-                { label: 'Oldest First (Date)', value: 'date-asc' },
-                { label: 'Name (A - Z)', value: 'name-asc' },
-                { label: 'Name (Z - A)', value: 'name-desc' },
-                { label: 'Custom Drag Order', value: 'custom' },
-              ]}
-              comboboxProps={{ width: isMobile ? '100%' : 195, withinPortal: true, shadow: 'md' }}
-              style={{ width: '100%' }}
-              styles={{
-                input: {
-                  height: 32,
-                  minHeight: 32,
-                  fontSize: '12px',
-                  fontWeight: 500,
-                  borderRadius: '8px',
-                  borderColor: 'var(--border-subtle)',
-                  backgroundColor: 'var(--surface-card)',
-                  color: 'var(--text-primary)',
-                },
-                dropdown: { borderRadius: '8px', padding: '4px' },
-                option: { fontSize: '12px', whiteSpace: 'nowrap', borderRadius: '6px' },
-              }}
-            />
-          </Box>
         </Group>
       </Group>
 
@@ -698,26 +936,104 @@ export default function CollectionHubView({
           <Stack align="center" gap="sm" py="xl">
             <Folder size={40} color="#94a3b8" />
             <Text fw={600} size="md">
-              No files in this collection yet
+              {mediaFilter !== 'all' ? `No ${mediaFilter} found in this collection` : 'No files in this collection yet'}
             </Text>
             <Text size="xs" c="dimmed" style={{ maxWidth: 360 }}>
-              Upload files and assign them here, or move existing documents into "{collection?.name}".
+              {mediaFilter !== 'all'
+                ? 'Try resetting the filter to view all files.'
+                : `Upload files and assign them here, or move existing documents into "${collection?.name}".`}
             </Text>
-            <Button
-              variant="light"
-              color="blue"
-              size="xs"
-              mt="xs"
-              leftSection={<UploadCloud size={14} />}
-              onClick={() => onOpenUpload && onOpenUpload(collection)}
-            >
-              Upload Document
-            </Button>
+            {mediaFilter !== 'all' ? (
+              <Button variant="light" color="emerald" size="xs" mt="xs" onClick={() => setMediaFilter('all')}>
+                Reset Filter
+              </Button>
+            ) : (
+              <Button
+                variant="light"
+                color="blue"
+                size="xs"
+                mt="xs"
+                leftSection={<UploadCloud size={14} />}
+                onClick={() => onOpenUpload && onOpenUpload(collection)}
+              >
+                Upload Document
+              </Button>
+            )}
           </Stack>
         </Paper>
       ) : (
         <>
-          <SimpleGrid cols={{ base: 1, md: 2, xl: 3 }} spacing={isMobile ? 'xs' : 'md'}>
+          {viewMode === 'gallery' ? (
+            /* 1. Visual Photo & Video Gallery Grid (4 columns on desktop matching Mockup Image 2) */
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={isMobile ? 'xs' : 'md'}>
+              {displayedFilesWithMeta.slice(0, collectionDisplayLimit).map((file) => {
+                const isDropBefore = dropTargetFileId === file.id && dropPosition === 'before';
+                const isDropAfter = dropTargetFileId === file.id && dropPosition === 'after';
+                const isSelected = selectedFileIds.includes(file.id);
+
+                return (
+                  <GalleryMediaCard
+                    key={file.id}
+                    file={file}
+                    token={token}
+                    isSelected={isSelected}
+                    onToggleSelect={handleToggleSelect}
+                    onSelectFile={onSelectFile}
+                    onDeleteFile={onDeleteFile}
+                    onMoveFile={handleMoveSingleFile}
+                    isMobile={isMobile}
+                    draggable={true}
+                    isDropBefore={isDropBefore}
+                    isDropAfter={isDropAfter}
+                    onDragStart={(e) => {
+                      if (
+                        e.target.closest('button') ||
+                        e.target.closest('a') ||
+                        e.target.closest('.mantine-Menu-dropdown') ||
+                        e.target.closest('.mantine-Checkbox-root')
+                      ) {
+                        e.preventDefault();
+                        return;
+                      }
+                      setDraggedFileId(file.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                      e.dataTransfer.setData('text/plain', file.id);
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const relX = e.clientX - rect.left;
+                      const pos = relX < rect.width / 2 ? 'before' : 'after';
+                      if (dropTargetFileId !== file.id || dropPosition !== pos) {
+                        setDropTargetFileId(file.id);
+                        setDropPosition(pos);
+                      }
+                    }}
+                    onDragLeave={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget)) {
+                        if (dropTargetFileId === file.id) {
+                          setDropTargetFileId(null);
+                          setDropPosition(null);
+                        }
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      handleFileDrop(file.id, dropPosition);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedFileId(null);
+                      setDropTargetFileId(null);
+                      setDropPosition(null);
+                    }}
+                  />
+                );
+              })}
+            </SimpleGrid>
+          ) : (
+            /* 2. Detailed Document Card List (3 columns matching Image 1) */
+            <SimpleGrid cols={{ base: 1, md: 2, xl: 3 }} spacing={isMobile ? 'xs' : 'md'}>
           {displayedFilesWithMeta.slice(0, collectionDisplayLimit).map((file) => {
             const meta = getDocTypeMeta(file.type, file.format);
             const isDragging = draggedFileId === file.id;
@@ -1272,6 +1588,7 @@ export default function CollectionHubView({
             );
           })}
         </SimpleGrid>
+      )}
 
         {displayedFilesWithMeta.length > collectionDisplayLimit && (
           <Button
