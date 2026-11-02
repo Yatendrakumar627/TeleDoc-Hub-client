@@ -39,7 +39,6 @@ import {
   Trash2,
   UploadCloud,
   Tag,
-  PanelLeftClose,
   GripVertical,
   ArrowUpDown,
   AlertTriangle,
@@ -726,20 +725,6 @@ export default function Sidebar({
             </Box>
           </Group>
         </Tooltip>
-
-        {onCollapseSidebar && (
-          <Tooltip label="Collapse Sidebar (Ctrl+B)" withArrow position="bottom-end">
-            <ActionIcon
-              size="28px"
-              radius="sm"
-              variant="subtle"
-              color="gray"
-              onClick={onCollapseSidebar}
-            >
-              <PanelLeftClose size={16} />
-            </ActionIcon>
-          </Tooltip>
-        )}
       </Group>
 
       {/* Telegram Status Pill */}
