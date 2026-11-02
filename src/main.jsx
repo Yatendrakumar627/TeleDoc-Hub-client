@@ -13,6 +13,7 @@ import './theme.css';
 import './App.css';
 import App from './App.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
+import ErrorBoundary from './components/ui/ErrorBoundary.jsx';
 
 const theme = createTheme({
   primaryColor: 'emerald',
@@ -160,9 +161,11 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <MantineProvider theme={theme} defaultColorScheme="light">
       <Notifications position="top-right" zIndex={1000} />
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <ErrorBoundary>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </ErrorBoundary>
     </MantineProvider>
   </React.StrictMode>
 );
