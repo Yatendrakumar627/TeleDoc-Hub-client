@@ -167,6 +167,7 @@ export default function WorkspaceLayout({
 
   return (
     <AppShell
+      padding={0}
       navbar={{
         width: isMobile ? 'min(315px, 80vw)' : sidebarWidth,
         breakpoint: 'sm',
@@ -190,6 +191,7 @@ export default function WorkspaceLayout({
           backgroundColor: 'var(--surface-app)',
           minHeight: '100vh',
           transition: isResizing ? 'none !important' : 'padding-left 0.2s ease !important',
+          padding: 0,
         },
       }}
     >

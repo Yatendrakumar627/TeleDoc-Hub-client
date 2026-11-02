@@ -458,6 +458,11 @@ body {
    13. Mobile Responsive Sidebar Ratio & Backdrop Peek
    ------------------------------------------------------------------------- */
 @media (max-width: 768px) {
+  html, body, #root, .mantine-AppShell-root {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+
   .mantine-AppShell-navbar,
   [data-app-shell-navbar] {
     width: min(315px, 80vw) !important;
@@ -466,9 +471,13 @@ body {
     z-index: 100 !important;
   }
 
-  /* Ensure AppShell main has unconstrained overflow on mobile so sticky topbar never clips or fails to anchor */
+  /* Eliminate asymmetric right-edge gap and ensure edge-to-edge layout */
   .mantine-AppShell-main {
     overflow: visible !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    padding-inline-end: 0 !important;
+    box-sizing: border-box !important;
   }
 }
 

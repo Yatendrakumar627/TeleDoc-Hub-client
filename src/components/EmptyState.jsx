@@ -311,12 +311,12 @@ export default function EmptyState({
   }, [allDocuments, selectedCategory, searchQuery, sortBy]);
 
   return (
-    <Box p={isMobile ? 'sm' : 'xl'} className="luxury-hero-canvas" style={{ minHeight: 'calc(100vh - 65px)', width: '100%' }}>
-      <Stack gap="xl" style={{ maxWidth: 1200, margin: '0 auto', width: '100%' }}>
+    <Box p={isMobile ? 'xs' : 'xl'} className="luxury-hero-canvas" style={{ minHeight: 'calc(100vh - 65px)', width: '100%', boxSizing: 'border-box' }}>
+      <Stack gap={isMobile ? 'md' : 'xl'} style={{ maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         
         {/* ================= 1. LIVE HERO COMMAND HEADER ================= */}
         <Paper
-          p={isMobile ? 'md' : 'xl'}
+          p={isMobile ? 'sm' : 'xl'}
           radius="lg"
           style={{
             background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(250, 247, 242, 0.9) 100%)',
@@ -626,7 +626,7 @@ export default function EmptyState({
               </Group>
 
               {/* Search & Sort Controls */}
-              <Group gap="xs" wrap="nowrap" style={{ flexGrow: isMobile ? 1 : 0 }}>
+              <Group gap="xs" wrap={isMobile ? 'wrap' : 'nowrap'} style={{ flexGrow: isMobile ? 1 : 0, width: isMobile ? '100%' : 'auto' }}>
                 <TextInput
                   placeholder="Quick search file or collection..."
                   size="xs"
@@ -641,7 +641,7 @@ export default function EmptyState({
                       </ActionIcon>
                     ) : null
                   }
-                  style={{ minWidth: isMobile ? '100%' : 220 }}
+                  style={{ flex: 1, minWidth: isMobile ? 0 : 220 }}
                 />
 
                 <Select
@@ -655,7 +655,7 @@ export default function EmptyState({
                     { value: 'size', label: 'Size' },
                     { value: 'name', label: 'Name A-Z' },
                   ]}
-                  style={{ width: 110 }}
+                  style={{ width: isMobile ? 100 : 110 }}
                 />
               </Group>
             </Group>
