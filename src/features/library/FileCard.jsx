@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Paper, Group, Box, Text, ActionIcon, Tooltip, Menu, TextInput, Badge, Checkbox } from '@mantine/core';
-import { Trash2, Lock, FolderInput, Folder, Pencil, Check, X, FileText } from 'lucide-react';
+import { Trash2, Lock, FolderInput, Folder, Pencil, Check, X, FileText, Film, Image as ImageIcon, Volume2 } from 'lucide-react';
 import { formatBytes } from '../../utils/formatters';
 import { getDocTypeMeta } from '../../utils/docTypes';
 
@@ -16,6 +16,69 @@ function DocumentBrandIcon({ type, format, filename, size = 28 }) {
   const isPdf = t === 'pdf' || ext === 'pdf' || f === 'pdf';
   const isSheet = ['xlsx', 'xls', 'csv', 'tsv', 'ods'].includes(t) || ['xlsx', 'xls', 'csv'].includes(ext) || f === 'spreadsheet';
   const isPpt = ['pptx', 'ppt'].includes(t) || ['pptx', 'ppt'].includes(ext) || f === 'presentation';
+  const isVideo = ['mp4', 'mov', 'webm', 'mkv', 'avi', 'm4v'].includes(t) || ['mp4', 'mov', 'webm', 'mkv', 'avi', 'm4v'].includes(ext) || f === 'video' || f === 'media';
+  const isImage = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp', 'ico'].includes(t) || ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp', 'ico'].includes(ext) || f === 'image';
+  const isAudio = ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'].includes(t) || ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'].includes(ext) || f === 'audio';
+
+  if (isVideo) {
+    return (
+      <Box
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 7,
+          backgroundColor: '#ede9fe',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          color: '#7c3aed',
+        }}
+      >
+        <Film size={15} />
+      </Box>
+    );
+  }
+
+  if (isImage) {
+    return (
+      <Box
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 7,
+          backgroundColor: '#e0f2fe',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          color: '#0284c7',
+        }}
+      >
+        <ImageIcon size={15} />
+      </Box>
+    );
+  }
+
+  if (isAudio) {
+    return (
+      <Box
+        style={{
+          width: size,
+          height: size,
+          borderRadius: 7,
+          backgroundColor: '#fef3c7',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          color: '#d97706',
+        }}
+      >
+        <Volume2 size={15} />
+      </Box>
+    );
+  }
 
   if (isWord) {
     return (
@@ -212,42 +275,55 @@ function FileCard({
   // Color theme for format badge
   const badgeStyle = useMemo(() => {
     const ext = (targetDoc.filename ? targetDoc.filename.split('.').pop() : targetDoc.type || '').toLowerCase();
-    if (['docx', 'doc'].includes(ext) || targetDoc.format === 'word') {
+    const f = (targetDoc.format || '').toLowerCase();
+    if (['docx', 'doc'].includes(ext) || f === 'word') {
       return { bg: '#e0f2fe', color: '#0369a1' };
     }
-    if (ext === 'pdf' || targetDoc.format === 'pdf') {
+    if (ext === 'pdf' || f === 'pdf') {
       return { bg: '#ffe4e6', color: '#be123c' };
     }
-    if (['xlsx', 'xls', 'csv'].includes(ext) || targetDoc.format === 'spreadsheet') {
+    if (['xlsx', 'xls', 'csv'].includes(ext) || f === 'spreadsheet') {
       return { bg: '#dcfce7', color: '#15803d' };
     }
-    if (['pptx', 'ppt'].includes(ext) || targetDoc.format === 'presentation') {
+    if (['pptx', 'ppt'].includes(ext) || f === 'presentation') {
       return { bg: '#ffedd5', color: '#c2410c' };
+    }
+    if (['mp4', 'mov', 'webm', 'mkv', 'avi', 'm4v'].includes(ext) || f === 'video' || f === 'media') {
+      return { bg: '#ede9fe', color: '#6d28d9' };
+    }
+    if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'bmp'].includes(ext) || f === 'image') {
+      return { bg: '#e0f2fe', color: '#0284c7' };
+    }
+    if (['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'].includes(ext) || f === 'audio') {
+      return { bg: '#fef3c7', color: '#b45309' };
     }
     return { bg: '#eaf7ee', color: '#185844' };
   }, [targetDoc]);
 
   return (
     <Paper
+      className={`sidebar-file-card ${isSelected ? 'is-active' : ''}`}
       px={10}
       py={7}
       radius="md"
       withBorder
       style={{
         cursor: 'pointer',
+        position: 'relative',
+        overflow: 'hidden',
         borderColor: isMultiSelected
-          ? 'var(--brand-emerald)'
+          ? 'var(--brand-emerald, #185844)'
           : isSelected
-          ? 'var(--brand-primary)'
+          ? 'var(--brand-primary, #185844)'
           : 'var(--border-subtle, #e2e8f0)',
-        borderLeft: `3px solid ${isMultiSelected ? 'var(--brand-emerald)' : meta.accentColor || 'var(--brand-primary)'}`,
+        borderWidth: isSelected || isMultiSelected ? '1.5px' : '1px',
         backgroundColor: isMultiSelected
           ? '#f0fdf4'
           : isSelected
-          ? 'var(--surface-selected)'
+          ? 'var(--surface-selected, #edf4f0)'
           : '#ffffff',
         boxShadow: isMultiSelected
-          ? '0 0 0 1px var(--brand-emerald), 0 2px 8px rgba(16, 185, 129, 0.12)'
+          ? '0 0 0 1px var(--brand-emerald, #185844), 0 2px 8px rgba(16, 185, 129, 0.12)'
           : isSelected
           ? '0 2px 8px rgba(24, 88, 68, 0.12)'
           : '0 1px 3px rgba(16, 47, 39, 0.03)',
@@ -256,6 +332,20 @@ function FileCard({
       }}
       onClick={() => onSelect && onSelect(targetDoc.id)}
     >
+      {/* Crisp Left Indicator Bar (replaces the beveled border-left glitch) */}
+      {(isSelected || isMultiSelected) && (
+        <Box
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 3.5,
+            backgroundColor: 'var(--brand-primary, #185844)',
+            zIndex: 5,
+          }}
+        />
+      )}
       <Group justify="space-between" wrap="nowrap" align="center">
         <Group gap={9} wrap="nowrap" style={{ overflow: 'hidden', flex: 1, minWidth: 0 }}>
           {onToggleSelect && (
@@ -398,7 +488,16 @@ function FileCard({
         </Group>
 
         {/* Quick Action Icons: Move, Rename, Delete */}
-        <Group gap={2} wrap="nowrap" style={{ flexShrink: 0 }}>
+        <Group
+          className="sidebar-file-actions"
+          gap={2}
+          wrap="nowrap"
+          style={{
+            flexShrink: 0,
+            opacity: isSelected ? 0.95 : 0.35,
+            transition: 'opacity 0.15s ease',
+          }}
+        >
           {collections.length > 0 && onAssignCollection && (
             <Menu shadow="md" width={200} position="left-start" withinPortal>
               <Menu.Target>

@@ -562,5 +562,22 @@ body {
   box-shadow: 0 0 10px rgba(24, 88, 68, 0.55) !important;
 }
 
+/* -------------------------------------------------------------------------
+   18. Sidebar File Card Micro-Interactions
+   ------------------------------------------------------------------------- */
+.sidebar-file-card {
+  transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.sidebar-file-card:hover {
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05) !important;
+}
+
+.sidebar-file-card:hover .sidebar-file-actions,
+.sidebar-file-card.is-active .sidebar-file-actions {
+  opacity: 1 !important;
+}
+
 
 
