@@ -269,7 +269,11 @@ export default function CollectionHubView({
     setSelectedFileIds([]);
   }, [collection?.id]);
 
-  // Media statistics
+  // Media and Archive statistics
+  const totalBytes = useMemo(() => {
+    return files.reduce((acc, f) => acc + (f.fileSize || 0), 0);
+  }, [files]);
+
   const imageFilesCount = useMemo(() => files.filter(isImageFile).length, [files]);
   const videoFilesCount = useMemo(() => files.filter(isVideoFile).length, [files]);
   const totalMediaCount = imageFilesCount + videoFilesCount;
@@ -440,7 +444,6 @@ export default function CollectionHubView({
   const [deleteCascade, setDeleteCascade] = useState('false'); // 'false' (unassign) | 'true' (delete files)
   const [isSubmittingDelete, setIsSubmittingDelete] = useState(false);
 
-  const totalBytes = files.reduce((acc, f) => acc + (f.fileSize || 0), 0);
   const isPersonal = collection?.scope === 'personal';
 
   const handleOpenEdit = () => {
