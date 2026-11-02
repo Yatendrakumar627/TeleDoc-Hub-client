@@ -19,6 +19,13 @@
   --brand-primary-light: #edf4f0;      /* Soft Emerald Ice Tint */
   --brand-primary-border: #b6d3c0;     /* Hairline Emerald Border */
 
+  --brand-emerald: #185844;            /* Royal Emerald Token Alias */
+  --brand-emerald-hover: #134737;
+  --brand-emerald-active: #0e3529;
+  --brand-emerald-light: #edf4f0;
+  --brand-emerald-subtle: #eaf7ee;
+  --brand-emerald-border: #b6d3c0;
+
   --brand-forest: #102F27;             /* Midnight Forest Obsidian */
   --brand-forest-hover: #0a1f1a;
   
@@ -506,6 +513,37 @@ body {
 .gallery-media-card.is-selected {
   border-color: var(--brand-emerald, #185844) !important;
   box-shadow: 0 0 0 2px var(--brand-emerald, #185844), 0 8px 24px rgba(16, 185, 129, 0.22) !important;
+}
+
+/* -------------------------------------------------------------------------
+   16. Sidebar Folder Item Micro-Interactions & Polish
+   ------------------------------------------------------------------------- */
+.sidebar-folder-row {
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.sidebar-folder-row:hover {
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05) !important;
+}
+
+.sidebar-folder-row .sidebar-row-action {
+  opacity: 0.35;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-folder-row:hover .sidebar-row-action,
+.sidebar-folder-row.is-active .sidebar-row-action {
+  opacity: 0.95;
+}
+
+.sidebar-folder-row:hover .sidebar-folder-drag {
+  opacity: 0.85;
+}
+
+.sidebar-folder-drag {
+  opacity: 0.25;
+  transition: opacity 0.15s ease, color 0.15s ease;
 }
 
 

@@ -1047,8 +1047,16 @@ export default function Sidebar({
       </Collapse>
 
       {/* 5. Summary & Reset */}
-      <Group justify="space-between" px={2}>
-        <Text size="11px" c="dimmed" fw={500}>
+      <Group justify="space-between" align="center" px={4} py={2}>
+        <Text
+          size="11.5px"
+          fw={600}
+          style={{
+            color: 'var(--brand-forest, #102F27)',
+            opacity: 0.75,
+            letterSpacing: '0.01em',
+          }}
+        >
           {viewMode === 'collections'
             ? `${groupedCollections.collectionsList.length} Folders • ${filteredDocs.length} Files`
             : viewMode === 'groups'
@@ -1089,7 +1097,7 @@ export default function Sidebar({
         offsetScrollbars
         scrollbarSize={6}
       >
-        <Stack gap="xs" pr={4} pb={50}>
+        <Stack gap="xs" pr={8} pb={50}>
           {viewMode === 'groups' ? (
             // ================= GROUPS VIEW (User-Created Groups Only) =================
             groups.length === 0 ? (
@@ -1535,27 +1543,37 @@ export default function Sidebar({
                                             {isColExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
                                           </ActionIcon>
                                           {isColExpanded ? (
-                                            <FolderOpen size={14} color="var(--brand-gold)" />
+                                            <FolderOpen
+                                              size={15}
+                                              fill={isColSelected ? '#c8e2d4' : '#fef3c7'}
+                                              color={isColSelected ? '#185844' : '#d97706'}
+                                              strokeWidth={isColSelected ? 2 : 1.7}
+                                            />
                                           ) : (
-                                            <Folder size={14} color="var(--brand-gold)" />
+                                            <Folder
+                                              size={15}
+                                              fill={isColSelected ? '#c8e2d4' : '#fef3c7'}
+                                              color={isColSelected ? '#185844' : '#d97706'}
+                                              strokeWidth={isColSelected ? 2 : 1.7}
+                                            />
                                           )}
-                                          <Text size="xs" truncate fw={isColSelected ? 600 : 500} style={{ color: 'var(--brand-forest)' }}>
+                                          <Text size="xs" truncate fw={isColSelected ? 700 : 500} style={{ color: isColSelected ? 'var(--brand-primary, #185844)' : 'var(--brand-forest)' }}>
                                             {c.name}
                                           </Text>
                                         </Group>
 
                                         <Badge
                                           size="xs"
-                                          variant={isColSelected ? 'filled' : 'light'}
                                           style={{
                                             fontSize: '10px',
-                                            fontWeight: 600,
-                                            height: 18,
+                                            fontWeight: 700,
+                                            height: 19,
                                             minWidth: 20,
                                             padding: '0 5px',
                                             borderRadius: '6px',
-                                            backgroundColor: isColSelected ? 'var(--brand-emerald)' : '#f1f5f9',
+                                            backgroundColor: isColSelected ? 'var(--brand-primary, #185844)' : '#f1f5f9',
                                             color: isColSelected ? '#ffffff' : '#475569',
+                                            border: isColSelected ? '1px solid var(--brand-primary, #185844)' : '1px solid #e2e8f0',
                                           }}
                                         >
                                           {cFiles.length}
@@ -1671,6 +1689,7 @@ export default function Sidebar({
                 return (
                   <Box
                     key={col.id}
+                    className={`sidebar-folder-row ${isSelected ? 'is-active' : ''}`}
                     draggable={true}
                     onDragStart={(e) => {
                       const target = e.target;
@@ -1714,15 +1733,36 @@ export default function Sidebar({
                     style={{
                       position: 'relative',
                       borderRadius: '10px',
-                      border: isSelected ? '1.5px solid var(--brand-primary)' : isDragging ? '1.5px dashed var(--brand-emerald)' : '1px solid var(--border-subtle)',
-                      backgroundColor: isSelected ? 'var(--surface-selected)' : 'var(--surface-card)',
-                      boxShadow: isSelected ? '0 2px 8px rgba(79, 70, 229, 0.12)' : 'var(--shadow-sm)',
-                      overflow: 'visible',
+                      border: isSelected
+                        ? '1.5px solid var(--brand-primary, #185844)'
+                        : isDragging
+                        ? '1.5px dashed var(--brand-primary, #185844)'
+                        : '1px solid var(--border-subtle, #e2e8f0)',
+                      backgroundColor: isSelected ? 'var(--surface-selected, #edf4f0)' : '#ffffff',
+                      boxShadow: isSelected
+                        ? '0 2px 10px rgba(24, 88, 68, 0.15)'
+                        : '0 1px 3px rgba(0, 0, 0, 0.02)',
+                      overflow: 'hidden',
                       opacity: isDragging ? 0.35 : 1,
                       transform: isDragging ? 'scale(0.98)' : 'none',
                       transition: 'all 0.18s ease-in-out',
                     }}
                   >
+                    {/* Active Left Accent Pill Indicator */}
+                    {isSelected && (
+                      <Box
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: 3.5,
+                          backgroundColor: 'var(--brand-primary, #185844)',
+                          zIndex: 10,
+                        }}
+                      />
+                    )}
+
                     {/* Visual Drop Indicators with dot */}
                     {isDropTargetBefore && (
                       <Box
@@ -1732,7 +1772,7 @@ export default function Sidebar({
                           left: 4,
                           right: 4,
                           height: 3,
-                          backgroundColor: 'var(--brand-emerald)',
+                          backgroundColor: 'var(--brand-emerald, #185844)',
                           borderRadius: 99,
                           zIndex: 30,
                           boxShadow: '0 0 8px rgba(24, 88, 68, 0.75)',
@@ -1747,7 +1787,7 @@ export default function Sidebar({
                             width: 9,
                             height: 9,
                             borderRadius: '50%',
-                            backgroundColor: 'var(--brand-emerald)',
+                            backgroundColor: 'var(--brand-emerald, #185844)',
                             boxShadow: '0 0 6px rgba(24, 88, 68, 0.8)',
                           }}
                         />
@@ -1761,7 +1801,7 @@ export default function Sidebar({
                           left: 4,
                           right: 4,
                           height: 3,
-                          backgroundColor: 'var(--brand-emerald)',
+                          backgroundColor: 'var(--brand-emerald, #185844)',
                           borderRadius: 99,
                           zIndex: 30,
                           boxShadow: '0 0 8px rgba(24, 88, 68, 0.75)',
@@ -1776,7 +1816,7 @@ export default function Sidebar({
                             width: 9,
                             height: 9,
                             borderRadius: '50%',
-                            backgroundColor: 'var(--brand-emerald)',
+                            backgroundColor: 'var(--brand-emerald, #185844)',
                             boxShadow: '0 0 6px rgba(24, 88, 68, 0.8)',
                           }}
                         />
@@ -1792,10 +1832,10 @@ export default function Sidebar({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        backgroundColor: isSelected ? 'var(--surface-selected)' : 'var(--surface-card)',
+                        backgroundColor: isSelected ? 'var(--surface-selected, #edf4f0)' : 'transparent',
                         cursor: 'pointer',
                         userSelect: 'none',
-                        borderRadius: '9px 9px 0 0',
+                        borderRadius: isExpanded ? '9px 9px 0 0' : '9px',
                         transition: 'background-color 0.15s ease',
                       }}
                     >
@@ -1804,6 +1844,7 @@ export default function Sidebar({
                         <Tooltip label="Drag up or down to re-order folder" position="top" withArrow openDelay={350}>
                           <Box
                             component="span"
+                            className="sidebar-folder-drag"
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -1812,7 +1853,6 @@ export default function Sidebar({
                               color: 'var(--brand-sage)',
                               padding: '2px',
                               borderRadius: 3,
-                              transition: 'color 0.15s ease',
                             }}
                             onClick={(e) => e.stopPropagation()}
                           >
@@ -1825,34 +1865,58 @@ export default function Sidebar({
                           variant="subtle"
                           color="gray"
                           onClick={(e) => toggleFolder(col.id, e)}
+                          style={{
+                            opacity: colFiles.length > 0 ? 0.9 : 0.35,
+                          }}
                         >
                           {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                         </ActionIcon>
 
                         {isExpanded ? (
-                          <FolderOpen size={16} color="var(--brand-gold)" />
+                          <FolderOpen
+                            size={17}
+                            fill={isSelected ? '#c8e2d4' : '#fef3c7'}
+                            color={isSelected ? '#185844' : '#d97706'}
+                            strokeWidth={isSelected ? 2 : 1.7}
+                            style={{ flexShrink: 0 }}
+                          />
                         ) : (
-                          <Folder size={16} color="var(--brand-gold)" />
+                          <Folder
+                            size={17}
+                            fill={isSelected ? '#c8e2d4' : '#fef3c7'}
+                            color={isSelected ? '#185844' : '#d97706'}
+                            strokeWidth={isSelected ? 2 : 1.7}
+                            style={{ flexShrink: 0 }}
+                          />
                         )}
 
-                        <Text size="xs" fw={600} truncate style={{ color: 'var(--brand-forest)' }}>
+                        <Text
+                          size="xs"
+                          fw={isSelected ? 700 : 600}
+                          truncate
+                          style={{
+                            color: isSelected ? 'var(--brand-primary, #185844)' : '#0f172a',
+                            letterSpacing: '-0.01em',
+                          }}
+                        >
                           {col.name}
                         </Text>
                       </Group>
 
-                      <Group gap={4} wrap="nowrap">
+                      <Group gap={6} wrap="nowrap">
                         <Badge
                           size="xs"
-                          variant={isSelected ? 'filled' : 'light'}
                           style={{
-                            fontSize: '10px',
-                            fontWeight: 600,
-                            height: 18,
-                            minWidth: 20,
-                            padding: '0 5px',
+                            fontSize: '10.5px',
+                            fontWeight: 700,
+                            height: 20,
+                            minWidth: 22,
+                            padding: '0 6px',
                             borderRadius: '6px',
-                            backgroundColor: isSelected ? 'var(--brand-emerald)' : '#f1f5f9',
+                            backgroundColor: isSelected ? 'var(--brand-primary, #185844)' : '#f1f5f9',
                             color: isSelected ? '#ffffff' : '#475569',
+                            border: isSelected ? '1px solid var(--brand-primary, #185844)' : '1px solid #e2e8f0',
+                            boxShadow: isSelected ? '0 1px 3px rgba(24, 88, 68, 0.25)' : 'none',
                           }}
                         >
                           {colFiles.length}
@@ -1864,6 +1928,7 @@ export default function Sidebar({
                               size="xs"
                               variant="subtle"
                               color="gray"
+                              className="sidebar-row-action"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <MoreVertical size={13} />
