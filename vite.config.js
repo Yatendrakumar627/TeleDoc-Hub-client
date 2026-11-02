@@ -10,6 +10,11 @@ export default defineConfig(({ mode }) => {
 
   const server = {
     port: devPort,
+    host: true,
+    hmr: {
+      host: 'localhost',
+      port: devPort,
+    },
   };
 
   // Only proxy when the API base is a relative path such as "/api".

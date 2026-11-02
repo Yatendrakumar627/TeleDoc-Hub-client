@@ -15,17 +15,18 @@ export default class ErrorBoundary extends React.Component {
   componentDidCatch(error, errorInfo) {
     console.error('[TeleDoc Vault] Uncaught Interface Error:', error, errorInfo);
 
-    // Auto-recover from stale Vite chunks or dynamic import chunk mismatches
+    // Auto-recover from stale Vite chunks, module version conflicts, or invalid hook calls
     const errMsg = (error?.message || '').toLowerCase();
     if (
       errMsg.includes('failed to fetch dynamically imported module') ||
-      errMsg.includes('cannot read properties of null (reading \'usecontext\')') ||
+      errMsg.includes('cannot read properties of null (reading \'use') ||
+      errMsg.includes('invalid hook call') ||
       errMsg.includes('chunk')
     ) {
       const hasAutoReloaded = sessionStorage.getItem('teledoc_auto_reloaded_chunk');
       if (!hasAutoReloaded) {
         sessionStorage.setItem('teledoc_auto_reloaded_chunk', 'true');
-        console.warn('[TeleDoc Vault] Detected stale asset chunk. Auto-refreshing page cache...');
+        console.warn('[TeleDoc Vault] Detected stale asset chunk / hook conflict. Auto-refreshing page cache...');
         window.location.reload();
       }
     }
@@ -120,3 +121,4 @@ export default class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+
