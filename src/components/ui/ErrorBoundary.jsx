@@ -19,22 +19,28 @@ export default class ErrorBoundary extends React.Component {
     const errMsg = (error?.message || '').toLowerCase();
     if (
       errMsg.includes('failed to fetch dynamically imported module') ||
-      errMsg.includes('cannot read properties of null (reading \'use') ||
+      errMsg.includes('null (reading') ||
       errMsg.includes('invalid hook call') ||
       errMsg.includes('chunk')
     ) {
       const hasAutoReloaded = sessionStorage.getItem('teledoc_auto_reloaded_chunk');
       if (!hasAutoReloaded) {
         sessionStorage.setItem('teledoc_auto_reloaded_chunk', 'true');
-        console.warn('[TeleDoc Vault] Detected stale asset chunk / hook conflict. Auto-refreshing page cache...');
-        window.location.reload();
+        console.warn('[TeleDoc Vault] Detected stale asset chunk / hook conflict. Auto-purging cache...');
+        if (typeof caches !== 'undefined') {
+          caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
+        }
+        window.location.href = window.location.origin + window.location.pathname + '?_v=' + Date.now();
       }
     }
   }
 
   handleReload = () => {
     sessionStorage.removeItem('teledoc_auto_reloaded_chunk');
-    window.location.reload();
+    if (typeof caches !== 'undefined') {
+      caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)));
+    }
+    window.location.href = window.location.origin + window.location.pathname + '?_v=' + Date.now();
   };
 
   handleReset = () => {
