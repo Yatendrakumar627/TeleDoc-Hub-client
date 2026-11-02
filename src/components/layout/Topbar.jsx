@@ -24,89 +24,93 @@ export default function Topbar({
       style={{
         borderBottom: '1px solid var(--border-subtle)',
         background: 'var(--surface-topbar)',
-        backdropFilter: 'blur(12px)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
         position: 'sticky',
         top: 0,
-        zIndex: 50,
+        zIndex: 80,
+        paddingTop: isMobile ? 'max(10px, env(safe-area-inset-top))' : undefined,
+        paddingBottom: isMobile ? '10px' : undefined,
+        boxShadow: isMobile ? '0 2px 10px rgba(16, 47, 39, 0.05)' : undefined,
       }}
     >
       {isMobile ? (
-        /* Mobile Compact 2-Row Topbar */
-        <Stack gap={6}>
-          {/* Row 1: Sidebar Toggle + Google Link Ingestion Bar */}
-          <Group gap="xs" wrap="nowrap" style={{ width: '100%' }}>
-            {onToggleSidebar && (
-              <ActionIcon
-                size="32px"
-                radius="md"
-                variant="subtle"
-                color="gray"
-                onClick={onToggleSidebar}
-                style={{
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: '#ffffff',
-                  color: 'var(--brand-forest)',
-                  flexShrink: 0,
-                }}
-              >
-                {sidebarOpened ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
-              </ActionIcon>
-            )}
-
-            {onNavigateHome && (
-              <ActionIcon
-                size="32px"
-                radius="md"
-                variant={isHome ? 'filled' : 'subtle'}
-                color={isHome ? 'emerald' : 'gray'}
-                onClick={onNavigateHome}
-                title="Go to Main Page"
-                style={{
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: isHome ? 'var(--brand-primary)' : '#ffffff',
-                  color: isHome ? '#F2EBDD' : 'var(--brand-forest)',
-                  flexShrink: 0,
-                }}
-              >
-                <Home size={15} />
-              </ActionIcon>
-            )}
-
-            <Box style={{ flex: 1, minWidth: 0 }}>
-              <GoogleLinkInput
-                onIngest={onIngestGoogleLink}
-                loading={isIngesting}
-              />
-            </Box>
-          </Group>
-
-          {/* Row 2: User Status Chip + Upload + Lock Vault */}
+        /* Mobile Premium 2-Row Topbar */
+        <Stack gap={8}>
+          {/* Row 1: Left Navigation & Right Primary Actions */}
           <Group justify="space-between" align="center" wrap="nowrap" style={{ width: '100%' }}>
-            {user ? (
-              <Paper
-                px={8}
-                py={3}
-                radius="xl"
-                style={{
-                  backgroundColor: 'var(--surface-card-warm)',
-                  border: '1px solid var(--border-gold)',
-                  boxShadow: 'var(--shadow-sm)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                <Avatar size={18} radius="xl" color="emerald" variant="filled">
-                  {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                </Avatar>
-                <Text size="xs" fw={600} truncate style={{ maxWidth: 110, color: 'var(--brand-forest)' }}>
-                  {user.name || user.email.split('@')[0]}
-                </Text>
-                <ShieldCheck size={12} color="var(--brand-gold)" />
-              </Paper>
-            ) : <Box />}
+            {/* Left: Sidebar Toggle, Home & User Identity */}
+            <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
+              {onToggleSidebar && (
+                <ActionIcon
+                  size="32px"
+                  radius="md"
+                  variant="subtle"
+                  color="gray"
+                  onClick={onToggleSidebar}
+                  style={{
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: '#ffffff',
+                    color: 'var(--brand-forest)',
+                    flexShrink: 0,
+                  }}
+                  aria-label="Toggle Sidebar"
+                >
+                  {sidebarOpened ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+                </ActionIcon>
+              )}
 
-            <Group gap={6} wrap="nowrap">
+              {onNavigateHome && (
+                <ActionIcon
+                  size="32px"
+                  radius="md"
+                  variant={isHome ? 'filled' : 'subtle'}
+                  color={isHome ? 'emerald' : 'gray'}
+                  onClick={onNavigateHome}
+                  title="Go to Main Page"
+                  style={{
+                    border: '1px solid var(--border-subtle)',
+                    backgroundColor: isHome ? 'var(--brand-primary)' : '#ffffff',
+                    color: isHome ? '#F2EBDD' : 'var(--brand-forest)',
+                    flexShrink: 0,
+                  }}
+                  aria-label="Main Page"
+                >
+                  <Home size={15} />
+                </ActionIcon>
+              )}
+
+              {user && (
+                <Paper
+                  px={8}
+                  py={0}
+                  radius="xl"
+                  style={{
+                    backgroundColor: 'var(--surface-card-warm)',
+                    border: '1px solid var(--border-gold)',
+                    boxShadow: 'var(--shadow-sm)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    height: '32px',
+                    boxSizing: 'border-box',
+                    flexShrink: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  <Avatar size={18} radius="xl" color="emerald" variant="filled">
+                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                  </Avatar>
+                  <Text size="xs" fw={600} truncate style={{ maxWidth: 80, color: 'var(--brand-forest)', fontSize: '11px' }}>
+                    {user.name || user.email.split('@')[0]}
+                  </Text>
+                  <ShieldCheck size={12} color="var(--brand-gold)" style={{ flexShrink: 0 }} />
+                </Paper>
+              )}
+            </Group>
+
+            {/* Right: Upload & Lock Vault Buttons */}
+            <Group gap={6} wrap="nowrap" style={{ flexShrink: 0 }}>
               <Button
                 leftSection={<UploadCloud size={14} color="#eedebd" />}
                 size="compact-xs"
@@ -114,7 +118,7 @@ export default function Topbar({
                 className="btn-premium-primary"
                 onClick={onOpenUploadModal}
                 style={{
-                  height: '28px',
+                  height: '32px',
                   padding: '0 10px',
                   background: 'linear-gradient(135deg, #185844 0%, #102F27 100%)',
                   border: '1px solid rgba(176, 138, 79, 0.5)',
@@ -122,6 +126,7 @@ export default function Topbar({
                   color: '#F2EBDD',
                   fontWeight: 600,
                   fontSize: '11px',
+                  flexShrink: 0,
                 }}
               >
                 Upload
@@ -133,19 +138,29 @@ export default function Topbar({
                 radius="md"
                 onClick={logout}
                 style={{
-                  height: '28px',
+                  height: '32px',
                   padding: '0 8px',
                   color: '#e11d48',
                   backgroundColor: '#fff1f2',
                   border: '1px solid #fecdd3',
                   fontWeight: 600,
                   fontSize: '11px',
+                  flexShrink: 0,
                 }}
               >
                 Lock
               </Button>
             </Group>
           </Group>
+
+          {/* Row 2: Dedicated Full-Width Google Link Ingestion Bar */}
+          <Box style={{ width: '100%' }}>
+            <GoogleLinkInput
+              onIngest={onIngestGoogleLink}
+              loading={isIngesting}
+              isMobile={true}
+            />
+          </Box>
         </Stack>
       ) : (
         /* Desktop Topbar */

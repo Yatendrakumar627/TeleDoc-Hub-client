@@ -6,6 +6,7 @@ export default function GoogleLinkInput({
   onIngest,
   loading = false,
   placeholder = 'Paste public Google Docs or Sheets link...',
+  isMobile = false,
 }) {
   const [url, setUrl] = useState('');
 
@@ -20,8 +21,8 @@ export default function GoogleLinkInput({
     <Box style={{ width: '100%' }}>
       <form onSubmit={handleSubmit}>
         <TextInput
-          placeholder={placeholder}
-          leftSection={<LinkIcon size={16} color="var(--brand-gold)" />}
+          placeholder={isMobile ? 'Paste Google Docs or Sheets link...' : placeholder}
+          leftSection={<LinkIcon size={isMobile ? 14 : 16} color="var(--brand-gold)" />}
           rightSection={
             <Button
               size="compact-xs"
@@ -35,8 +36,11 @@ export default function GoogleLinkInput({
                 boxShadow: '0 2px 6px rgba(24, 88, 68, 0.25)',
                 color: '#F2EBDD',
                 fontWeight: 600,
+                height: isMobile ? '24px' : '26px',
+                padding: isMobile ? '0 8px' : '0 10px',
+                fontSize: isMobile ? '11px' : '12px',
               }}
-              rightSection={!loading && <ArrowRight size={13} color="#eedebd" />}
+              rightSection={!loading && <ArrowRight size={isMobile ? 11 : 13} color="#eedebd" />}
             >
               Ingest
             </Button>
@@ -44,10 +48,12 @@ export default function GoogleLinkInput({
           value={url}
           onChange={(e) => setUrl(e.currentTarget.value)}
           radius="md"
-          size="sm"
+          size={isMobile ? 'xs' : 'sm'}
           styles={{
             input: {
-              paddingRight: 80,
+              paddingRight: isMobile ? 74 : 80,
+              height: isMobile ? '32px' : '36px',
+              fontSize: isMobile ? '12px' : '13px',
               backgroundColor: 'var(--surface-card)',
               borderColor: 'var(--border-subtle)',
             },

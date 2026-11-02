@@ -465,6 +465,11 @@ body {
     box-shadow: 10px 0 32px rgba(16, 47, 39, 0.35) !important;
     z-index: 100 !important;
   }
+
+  /* Ensure AppShell main has unconstrained overflow on mobile so sticky topbar never clips or fails to anchor */
+  .mantine-AppShell-main {
+    overflow: visible !important;
+  }
 }
 
 /* -------------------------------------------------------------------------
