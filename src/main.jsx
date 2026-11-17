@@ -175,3 +175,17 @@ window.__teledocMounted = true;
 try {
   sessionStorage.removeItem('teledoc_startup_reload_count');
 } catch (e) {}
+
+// Register PWA Service Worker for Mobile Chrome / Android App Installability
+if ('serviceWorker' in navigator && (window.location.protocol === 'https:' || window.location.hostname === 'localhost')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((registration) => {
+        console.info('[TeleDoc PWA] Service Worker active with scope:', registration.scope);
+      })
+      .catch((err) => {
+        console.warn('[TeleDoc PWA] Service Worker registration failed:', err);
+      });
+  });
+}
