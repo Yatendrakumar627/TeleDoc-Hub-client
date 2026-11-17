@@ -1,15 +1,17 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import StateFallback from '../../components/ui/StateFallback';
-import DocReader from './DocReader';
-import PdfViewer from './PdfViewer';
-import WordViewer from './WordViewer';
-import PresentationViewer from './PresentationViewer';
-import SheetTable from './SheetTable';
-import MediaBinaryViewer from './MediaBinaryViewer';
-import EmptyState from '../../components/EmptyState';
-import CollectionHubView from '../collection/CollectionHubView';
 import CollectionNavBar from '../collection/CollectionNavBar';
-import GroupHubView from '../group/GroupHubView';
+
+// Route/Feature Level Code Splitting: Lazy load heavy format viewers and hubs
+const DocReader = lazy(() => import('./DocReader'));
+const PdfViewer = lazy(() => import('./PdfViewer'));
+const WordViewer = lazy(() => import('./WordViewer'));
+const PresentationViewer = lazy(() => import('./PresentationViewer'));
+const SheetTable = lazy(() => import('./SheetTable'));
+const MediaBinaryViewer = lazy(() => import('./MediaBinaryViewer'));
+const EmptyState = lazy(() => import('../../components/EmptyState'));
+const CollectionHubView = lazy(() => import('../collection/CollectionHubView'));
+const GroupHubView = lazy(() => import('../group/GroupHubView'));
 
 export default function ViewerContainer({
   document,
@@ -64,20 +66,22 @@ export default function ViewerContainer({
       );
     }
     return (
-      <GroupHubView
-        group={group}
-        onSelectCollection={onSelectCollection}
-        onSelectFile={onSelectFile}
-        onDeleteFile={onDeleteFile}
-        onOpenUpload={onOpenUpload}
-        onUpdateGroup={onUpdateGroup}
-        onDeleteGroup={onDeleteGroup}
-        onCreateCollectionInGroup={onCreateCollectionInGroup}
-        onAssignCollectionToGroup={onAssignCollectionToGroup}
-        onBatchMoveFiles={onBatchMoveFiles}
-        onBatchDeleteFiles={onBatchDeleteFiles}
-        onNavigateHome={onNavigateHome}
-      />
+      <Suspense fallback={<StateFallback type="loading" message="Loading Group Overview..." height={450} />}>
+        <GroupHubView
+          group={group}
+          onSelectCollection={onSelectCollection}
+          onSelectFile={onSelectFile}
+          onDeleteFile={onDeleteFile}
+          onOpenUpload={onOpenUpload}
+          onUpdateGroup={onUpdateGroup}
+          onDeleteGroup={onDeleteGroup}
+          onCreateCollectionInGroup={onCreateCollectionInGroup}
+          onAssignCollectionToGroup={onAssignCollectionToGroup}
+          onBatchMoveFiles={onBatchMoveFiles}
+          onBatchDeleteFiles={onBatchDeleteFiles}
+          onNavigateHome={onNavigateHome}
+        />
+      </Suspense>
     );
   }
 
@@ -93,34 +97,38 @@ export default function ViewerContainer({
       );
     }
     return (
-      <CollectionHubView
-        collection={collection}
-        files={collectionFiles}
-        onSelectFile={onSelectFile}
-        onDeleteFile={onDeleteFile}
-        onOpenUpload={onOpenUpload}
-        onUpdateCollection={onUpdateCollection}
-        onDeleteCollection={onDeleteCollection}
-        onBatchMoveFiles={onBatchMoveFiles}
-        onBatchDeleteFiles={onBatchDeleteFiles}
-        onNavigateHome={onNavigateHome}
-      />
+      <Suspense fallback={<StateFallback type="loading" message="Loading Collection Overview..." height={450} />}>
+        <CollectionHubView
+          collection={collection}
+          files={collectionFiles}
+          onSelectFile={onSelectFile}
+          onDeleteFile={onDeleteFile}
+          onOpenUpload={onOpenUpload}
+          onUpdateCollection={onUpdateCollection}
+          onDeleteCollection={onDeleteCollection}
+          onBatchMoveFiles={onBatchMoveFiles}
+          onBatchDeleteFiles={onBatchDeleteFiles}
+          onNavigateHome={onNavigateHome}
+        />
+      </Suspense>
     );
   }
 
   // 3. Vault Command Center (Dashboard when no document is active)
   if (!document) {
     return (
-      <EmptyState
-        onOpenUpload={onOpenUpload}
-        isProcessing={isProcessing}
-        allDocuments={allDocuments}
-        groups={groups}
-        status={status}
-        onSelectFile={onSelectFile}
-        onSelectCollection={onSelectCollection}
-        onOpenCollectionHub={onOpenCollectionHub}
-      />
+      <Suspense fallback={<StateFallback type="loading" message="Loading Vault Command Center..." height={450} />}>
+        <EmptyState
+          onOpenUpload={onOpenUpload}
+          isProcessing={isProcessing}
+          allDocuments={allDocuments}
+          groups={groups}
+          status={status}
+          onSelectFile={onSelectFile}
+          onSelectCollection={onSelectCollection}
+          onOpenCollectionHub={onOpenCollectionHub}
+        />
+      </Suspense>
     );
   }
 
@@ -149,27 +157,29 @@ export default function ViewerContainer({
         onNavigateHome={onNavigateHome}
       />
 
-      {/* Enterprise Multi-Format High-Fidelity Viewer */}
-      {isPdf ? (
-        <PdfViewer document={document} content={content} onRenameFile={onRenameFile} onCloseFile={onCloseFile} />
-      ) : isWord ? (
-        <WordViewer document={document} content={content} onRenameFile={onRenameFile} onCloseFile={onCloseFile} />
-      ) : isPresentation ? (
-        <PresentationViewer document={document} content={content} onRenameFile={onRenameFile} onCloseFile={onCloseFile} />
-      ) : isSpreadsheet ? (
-        <SheetTable document={document} content={content} onRenameFile={onRenameFile} onCloseFile={onCloseFile} />
-      ) : isMediaOrBinary ? (
-        <MediaBinaryViewer
-          document={document}
-          content={content}
-          collectionFiles={collectionFiles && collectionFiles.length > 0 ? collectionFiles : allDocuments}
-          onSelectFile={onSelectFile}
-          onRenameFile={onRenameFile}
-          onCloseFile={onCloseFile}
-        />
-      ) : (
-        <DocReader document={document} content={content} onRenameFile={onRenameFile} onCloseFile={onCloseFile} />
-      )}
+      {/* Enterprise Multi-Format High-Fidelity Viewer (Lazy loaded on demand) */}
+      <Suspense fallback={<StateFallback type="loading" message="Loading document viewer..." height={450} />}>
+        {isPdf ? (
+          <PdfViewer document={document} content={content} onRenameFile={onRenameFile} onCloseFile={onCloseFile} />
+        ) : isWord ? (
+          <WordViewer document={document} content={content} onRenameFile={onRenameFile} onCloseFile={onCloseFile} />
+        ) : isPresentation ? (
+          <PresentationViewer document={document} content={content} onRenameFile={onRenameFile} onCloseFile={onCloseFile} />
+        ) : isSpreadsheet ? (
+          <SheetTable document={document} content={content} onRenameFile={onRenameFile} onCloseFile={onCloseFile} />
+        ) : isMediaOrBinary ? (
+          <MediaBinaryViewer
+            document={document}
+            content={content}
+            collectionFiles={collectionFiles && collectionFiles.length > 0 ? collectionFiles : allDocuments}
+            onSelectFile={onSelectFile}
+            onRenameFile={onRenameFile}
+            onCloseFile={onCloseFile}
+          />
+        ) : (
+          <DocReader document={document} content={content} onRenameFile={onRenameFile} onCloseFile={onCloseFile} />
+        )}
+      </Suspense>
     </div>
   );
 }

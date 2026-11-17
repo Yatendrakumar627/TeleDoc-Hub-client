@@ -32,6 +32,36 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       include: ['react', 'react-dom', '@mantine/core', '@mantine/hooks'],
     },
+    build: {
+      chunkSizeWarningLimit: 600,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (
+                id.includes('/react/') ||
+                id.includes('/react-dom/') ||
+                id.includes('react/jsx-runtime')
+              ) {
+                return 'vendor-react';
+              }
+              if (id.includes('@mantine/')) {
+                return 'vendor-mantine';
+              }
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
+              }
+              if (id.includes('docx-preview') || id.includes('jszip')) {
+                return 'vendor-docx';
+              }
+              if (id.includes('axios')) {
+                return 'vendor-axios';
+              }
+            }
+          },
+        },
+      },
+    },
     server,
   };
 });

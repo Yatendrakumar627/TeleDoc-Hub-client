@@ -51,7 +51,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Network-First with Cache Fallback for navigation and static assets
+  // 3. Cache-First for Vite hashed static assets (/assets/*.js, /assets/*.css)
+  // Because Vite fingerprints assets with content hashes, these files are immutable and load instantaneously from cache.
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const clone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return networkResponse;
+        });
+      })
+    );
+    return;
+  }
+
+  // 4. Network-First with Cache Fallback for navigation and general static assets
   event.respondWith(
     fetch(request)
       .then((networkResponse) => {

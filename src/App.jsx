@@ -21,9 +21,11 @@ const batchDeleteDocuments = api.batchDeleteDocuments || (async () => ({ deleted
 
 import WorkspaceLayout from './components/layout/WorkspaceLayout';
 import ViewerContainer from './features/viewer/ViewerContainer';
-import IngestionModal from './features/upload/IngestionModal';
-import AuthPage from './features/auth/AuthPage';
 import { extractErrorMessage } from './utils/formatters';
+
+// Lazy-load Auth and Upload features to keep initial bundle ultra-lean
+const IngestionModal = React.lazy(() => import('./features/upload/IngestionModal'));
+const AuthPage = React.lazy(() => import('./features/auth/AuthPage'));
 
 function VaultWorkspace() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -460,41 +462,78 @@ function VaultWorkspace() {
     return [];
   }, [documents, isViewingCollectionHub, selectedCollection, currentDoc]);
 
+  // Memoize layout props to prevent unnecessary layout recalculations and re-renders
+  const sidebarProps = useMemo(
+    () => ({
+      documents,
+      selectedDocId: isViewingCollectionHub || isViewingGroupHub ? null : selectedDocId,
+      selectedCollectionId: isViewingCollectionHub && selectedCollection ? selectedCollection.id : null,
+      groups,
+      selectedGroupId: isViewingGroupHub ? selectedGroupId : null,
+      collectionsVersion,
+      onSelectDoc: handleSelectDoc,
+      onSelectCollection: handleSelectCollection,
+      onSelectGroup: handleSelectGroup,
+      onCreateGroup: handleCreateGroup,
+      onUpdateGroup: handleUpdateGroup,
+      onDeleteGroup: handleDeleteGroup,
+      onReorderGroups: reorderGroupsInState,
+      onDeleteDoc: handleRemoveDoc,
+      onRenameDoc: renameDocument,
+      onAssignCollection: handleAssignDocumentCollection,
+      onUpdateCollection: handleUpdateCollection,
+      onDeleteCollection: handleDeleteCollection,
+      onOpenUpload: handleOpenUpload,
+      onNavigateHome: handleNavigateHome,
+      isHome,
+      status,
+      statusLoading,
+    }),
+    [
+      documents,
+      isViewingCollectionHub,
+      isViewingGroupHub,
+      selectedDocId,
+      selectedCollection,
+      groups,
+      selectedGroupId,
+      collectionsVersion,
+      handleSelectDoc,
+      handleSelectCollection,
+      handleSelectGroup,
+      handleCreateGroup,
+      handleUpdateGroup,
+      handleDeleteGroup,
+      reorderGroupsInState,
+      handleRemoveDoc,
+      renameDocument,
+      handleAssignDocumentCollection,
+      handleUpdateCollection,
+      handleDeleteCollection,
+      handleOpenUpload,
+      handleNavigateHome,
+      isHome,
+      status,
+      statusLoading,
+    ]
+  );
+
+  const topbarProps = useMemo(
+    () => ({
+      onOpenUploadModal: () => handleOpenUpload(null),
+      onIngestGoogleLink: ingestLink,
+      isIngesting: isProcessing,
+      onNavigateHome: handleNavigateHome,
+      isHome,
+    }),
+    [handleOpenUpload, ingestLink, isProcessing, handleNavigateHome, isHome]
+  );
+
   return (
     <>
       <WorkspaceLayout
-        sidebarProps={{
-          documents,
-          selectedDocId: isViewingCollectionHub || isViewingGroupHub ? null : selectedDocId,
-          selectedCollectionId: isViewingCollectionHub && selectedCollection ? selectedCollection.id : null,
-          groups,
-          selectedGroupId: isViewingGroupHub ? selectedGroupId : null,
-          collectionsVersion,
-          onSelectDoc: handleSelectDoc,
-          onSelectCollection: handleSelectCollection,
-          onSelectGroup: handleSelectGroup,
-          onCreateGroup: handleCreateGroup,
-          onUpdateGroup: handleUpdateGroup,
-          onDeleteGroup: handleDeleteGroup,
-          onReorderGroups: reorderGroupsInState,
-          onDeleteDoc: handleRemoveDoc,
-          onRenameDoc: renameDocument,
-          onAssignCollection: handleAssignDocumentCollection,
-          onUpdateCollection: handleUpdateCollection,
-          onDeleteCollection: handleDeleteCollection,
-          onOpenUpload: handleOpenUpload,
-          onNavigateHome: handleNavigateHome,
-          isHome,
-          status,
-          statusLoading,
-        }}
-        topbarProps={{
-          onOpenUploadModal: () => handleOpenUpload(null),
-          onIngestGoogleLink: ingestLink,
-          isIngesting: isProcessing,
-          onNavigateHome: handleNavigateHome,
-          isHome,
-        }}
+        sidebarProps={sidebarProps}
+        topbarProps={topbarProps}
       >
         <ViewerContainer
           document={currentDoc}
@@ -528,40 +567,44 @@ function VaultWorkspace() {
         />
       </WorkspaceLayout>
 
-      <IngestionModal
-        opened={uploadModalOpen}
-        onClose={() => {
-          setUploadModalOpen(false);
-          setUploadTargetCollection(null);
-          refreshDocuments();
-          loadGroups();
-          setCollectionsVersion((v) => v + 1);
-        }}
-        targetCollection={uploadTargetCollection}
-        onUploadFile={uploadFile}
-        onIngestGoogleLink={ingestLink}
-        isProcessing={isProcessing}
-        uploadProgress={uploadProgress}
-        uploadStatusText={uploadStatusText}
-        error={uploadError}
-        onClearError={clearError}
-        onRefreshVault={refreshDocuments}
-        onSuccessNavigate={async (docs, content, col) => {
-          const docList = Array.isArray(docs) ? docs : [docs];
-          addDocument(docs, content);
-          await refreshDocuments();
-          await loadGroups();
-          setCollectionsVersion((v) => v + 1);
+      {uploadModalOpen && (
+        <React.Suspense fallback={null}>
+          <IngestionModal
+            opened={uploadModalOpen}
+            onClose={() => {
+              setUploadModalOpen(false);
+              setUploadTargetCollection(null);
+              refreshDocuments();
+              loadGroups();
+              setCollectionsVersion((v) => v + 1);
+            }}
+            targetCollection={uploadTargetCollection}
+            onUploadFile={uploadFile}
+            onIngestGoogleLink={ingestLink}
+            isProcessing={isProcessing}
+            uploadProgress={uploadProgress}
+            uploadStatusText={uploadStatusText}
+            error={uploadError}
+            onClearError={clearError}
+            onRefreshVault={refreshDocuments}
+            onSuccessNavigate={async (docs, content, col) => {
+              const docList = Array.isArray(docs) ? docs : [docs];
+              addDocument(docs, content);
+              await refreshDocuments();
+              await loadGroups();
+              setCollectionsVersion((v) => v + 1);
 
-          if (col) {
-            setSelectedCollection(col);
-            setIsViewingCollectionHub(true);
-            setIsViewingGroupHub(false);
-          } else if (docList.length > 0) {
-            handleSelectDoc(docList[0].id);
-          }
-        }}
-      />
+              if (col) {
+                setSelectedCollection(col);
+                setIsViewingCollectionHub(true);
+                setIsViewingGroupHub(false);
+              } else if (docList.length > 0) {
+                handleSelectDoc(docList[0].id);
+              }
+            }}
+          />
+        </React.Suspense>
+      )}
     </>
   );
 }
@@ -591,9 +634,32 @@ export default function App() {
     );
   }
 
-  // Dedicated Login & Security Portal
+  // Dedicated Login & Security Portal (Lazy-loaded)
   if (!isAuthenticated) {
-    return <AuthPage />;
+    return (
+      <React.Suspense
+        fallback={
+          <Box
+            style={{
+              height: '100vh',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#0f172a',
+            }}
+          >
+            <Stack align="center" gap="sm">
+              <Loader color="blue" size="lg" />
+              <Text size="sm" c="gray.4" fw={500}>
+                Loading TeleDoc Security Portal...
+              </Text>
+            </Stack>
+          </Box>
+        }
+      >
+        <AuthPage />
+      </React.Suspense>
+    );
   }
 
   return <VaultWorkspace />;
