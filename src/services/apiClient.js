@@ -71,6 +71,20 @@ export const getStoredToken = () => {
   return localStorage.getItem(TOKEN_KEY);
 };
 
+export const getDownloadUrl = (docId) => {
+  if (!docId) return '';
+  const token = getStoredToken();
+  const base = `${API_BASE_URL}/documents/${docId}/download`;
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+};
+
+export const getThumbnailUrl = (docId) => {
+  if (!docId) return '';
+  const token = getStoredToken();
+  const base = `${API_BASE_URL}/documents/${docId}/thumbnail`;
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+};
+
 export const getStatus = async () => {
   const res = await apiClient.get('/status');
   return res.data;

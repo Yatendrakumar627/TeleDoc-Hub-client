@@ -37,6 +37,7 @@ import FeedbackBanner from '../../components/ui/FeedbackBanner';
 import EditableDocumentTitle from '../../components/ui/EditableDocumentTitle';
 import { formatReadingTime, formatBytes } from '../../utils/formatters';
 import { API_BASE_URL } from '../../config';
+import { getDownloadUrl } from '../../services/apiClient';
 
 export default function DocReader({ document, content, onRenameFile, onCloseFile }) {
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -82,7 +83,7 @@ export default function DocReader({ document, content, onRenameFile, onCloseFile
     return paragraphs.map((para) => para.split(regex));
   }, [text, searchTerm]);
 
-  const downloadUrl = `${API_BASE_URL}/documents/${document?.id}/download`;
+  const downloadUrl = getDownloadUrl(document?.id);
 
   return (
     <Box

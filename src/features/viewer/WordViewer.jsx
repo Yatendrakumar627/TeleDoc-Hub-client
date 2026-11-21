@@ -40,6 +40,7 @@ import SourceBadge from '../../components/ui/SourceBadge';
 import EditableDocumentTitle from '../../components/ui/EditableDocumentTitle';
 import { formatBytes } from '../../utils/formatters';
 import { API_BASE_URL } from '../../config';
+import { getDownloadUrl } from '../../services/apiClient';
 
 export default function WordViewer({ document, content, onRenameFile, onCloseFile }) {
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -57,7 +58,7 @@ export default function WordViewer({ document, content, onRenameFile, onCloseFil
   const stageRef = useRef(null);
 
   const token = localStorage.getItem('teledoc_vault_jwt') || '';
-  const downloadUrl = `${API_BASE_URL}/documents/${document.id}/download`;
+  const downloadUrl = getDownloadUrl(document.id);
 
   // Responsive container width tracking
   useEffect(() => {

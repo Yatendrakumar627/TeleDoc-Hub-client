@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { formatBytes } from '../../utils/formatters';
 import { API_BASE_URL } from '../../config';
+import { getDownloadUrl, getThumbnailUrl } from '../../services/apiClient';
 import { notifications } from '@mantine/notifications';
 
 /**
@@ -85,6 +86,7 @@ export default function GalleryMediaCard({
 }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [fallbackTried, setFallbackTried] = useState(false);
 
   const isImg = isImageFile(file);
   const isVid = isVideoFile(file);
@@ -93,10 +95,11 @@ export default function GalleryMediaCard({
   const ext = rawExt.length > 5 ? rawExt.slice(0, 4) : rawExt;
 
   const mediaUrl = `${API_BASE_URL}/documents/${file.id}/view?token=${encodeURIComponent(token || '')}`;
+  const thumbUrl = getThumbnailUrl(file.id);
 
   return (
     <Card
-      radius="16px"
+      radius={isMobile ? '12px' : '16px'}
       withBorder
       p={0}
       draggable={draggable}
@@ -160,7 +163,7 @@ export default function GalleryMediaCard({
         style={{
           position: 'relative',
           width: '100%',
-          height: isMobile ? 165 : 185,
+          height: isMobile ? 168 : 205,
           backgroundColor: '#0f172a',
           overflow: 'hidden',
           display: 'flex',
@@ -178,14 +181,21 @@ export default function GalleryMediaCard({
           />
         )}
 
-        {/* High Resolution Image Thumbnail */}
+        {/* High-Performance Micro-Thumbnail for Images */}
         {isImg && !imgError ? (
           <img
-            src={mediaUrl}
+            src={fallbackTried ? mediaUrl : thumbUrl}
             alt={file.title}
             loading="lazy"
+            decoding="async"
             onLoad={() => setImgLoaded(true)}
-            onError={() => setImgError(true)}
+            onError={() => {
+              if (!fallbackTried) {
+                setFallbackTried(true);
+              } else {
+                setImgError(true);
+              }
+            }}
             className="gallery-thumb-image"
             style={{
               width: '100%',
@@ -196,14 +206,18 @@ export default function GalleryMediaCard({
             }}
           />
         ) : isVid ? (
-          /* Progressive Video Thumbnail + Centered Play Icon */
+          /* Ultra-Lightweight Video Poster Thumbnail + Centered Play Icon */
           <Box style={{ width: '100%', height: '100%', position: 'relative' }}>
-            <video
-              src={`${mediaUrl}#t=0.5`}
-              preload="metadata"
-              muted
-              playsInline
+            <img
+              src={thumbUrl}
+              alt={file.title}
+              loading="lazy"
+              decoding="async"
               className="gallery-thumb-image"
+              onError={(e) => {
+                // If thumbnail failed, hide broken image so background remains clean
+                e.currentTarget.style.display = 'none';
+              }}
               style={{
                 width: '100%',
                 height: '100%',
@@ -225,8 +239,8 @@ export default function GalleryMediaCard({
               <Box
                 className="gallery-play-btn"
                 style={{
-                  width: 44,
-                  height: 44,
+                  width: isMobile ? 36 : 44,
+                  height: isMobile ? 36 : 44,
                   borderRadius: '50%',
                   backgroundColor: 'rgba(15, 23, 42, 0.75)',
                   backdropFilter: 'blur(8px)',
@@ -239,7 +253,7 @@ export default function GalleryMediaCard({
                   transition: 'transform 0.18s ease, background-color 0.18s ease',
                 }}
               >
-                <Play size={18} fill="#ffffff" style={{ marginLeft: 2 }} />
+                <Play size={isMobile ? 15 : 18} fill="#ffffff" style={{ marginLeft: 2 }} />
               </Box>
             </Box>
           </Box>
@@ -287,16 +301,16 @@ export default function GalleryMediaCard({
               }}
               style={{
                 position: 'absolute',
-                top: 10,
-                right: 10,
+                top: isMobile ? 6 : 10,
+                right: isMobile ? 6 : 10,
                 zIndex: 10,
                 cursor: 'pointer',
               }}
             >
               <Box
                 style={{
-                  width: 22,
-                  height: 22,
+                  width: isMobile ? 20 : 22,
+                  height: isMobile ? 20 : 22,
                   borderRadius: 6,
                   border: isSelected ? 'none' : '1.8px solid rgba(255, 255, 255, 0.88)',
                   backgroundColor: isSelected ? 'var(--brand-emerald, #185844)' : 'rgba(15, 23, 42, 0.38)',
@@ -308,7 +322,7 @@ export default function GalleryMediaCard({
                   transition: 'all 0.15s ease',
                 }}
               >
-                {isSelected && <Check size={14} color="#ffffff" strokeWidth={3} />}
+                {isSelected && <Check size={isMobile ? 12 : 14} color="#ffffff" strokeWidth={3} />}
               </Box>
             </Box>
           </Tooltip>
@@ -318,33 +332,33 @@ export default function GalleryMediaCard({
         <Box
           style={{
             position: 'absolute',
-            bottom: 10,
-            left: 10,
+            bottom: isMobile ? 6 : 10,
+            left: isMobile ? 6 : 10,
             zIndex: 10,
             backgroundColor: 'rgba(15, 23, 42, 0.72)',
             backdropFilter: 'blur(8px)',
             border: '1px solid rgba(255, 255, 255, 0.22)',
             borderRadius: 6,
-            padding: '3px 8px',
+            padding: isMobile ? '2px 6px' : '3px 8px',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 6,
+            gap: isMobile ? 4 : 6,
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.35)',
             pointerEvents: 'none',
           }}
         >
           {isImg ? (
-            <ImageIcon size={11} color="#ffffff" style={{ opacity: 0.95 }} />
+            <ImageIcon size={isMobile ? 9 : 11} color="#ffffff" style={{ opacity: 0.95 }} />
           ) : isVid ? (
-            <Film size={11} color="#ffffff" style={{ opacity: 0.95 }} />
+            <Film size={isMobile ? 9 : 11} color="#ffffff" style={{ opacity: 0.95 }} />
           ) : (
-            <FileText size={11} color="#ffffff" style={{ opacity: 0.95 }} />
+            <FileText size={isMobile ? 9 : 11} color="#ffffff" style={{ opacity: 0.95 }} />
           )}
-          <Text size="10.5px" fw={700} style={{ color: '#ffffff', letterSpacing: '0.02em', lineHeight: 1 }}>
+          <Text size={isMobile ? '9.5px' : '10.5px'} fw={700} style={{ color: '#ffffff', letterSpacing: '0.02em', lineHeight: 1 }}>
             {ext}
           </Text>
-          <Box style={{ width: 1, height: 9, backgroundColor: 'rgba(255, 255, 255, 0.35)' }} />
-          <Text size="10.5px" fw={600} style={{ color: '#ffffff', opacity: 0.95, lineHeight: 1 }}>
+          <Box style={{ width: 1, height: isMobile ? 8 : 9, backgroundColor: 'rgba(255, 255, 255, 0.35)' }} />
+          <Text size={isMobile ? '9.5px' : '10.5px'} fw={600} style={{ color: '#ffffff', opacity: 0.95, lineHeight: 1 }}>
             {formatBytes(file.fileSize)}
           </Text>
         </Box>
@@ -352,13 +366,14 @@ export default function GalleryMediaCard({
 
       {/* Bottom Information Row (Exact Match to Image 2) */}
       <Box
-        p="12px 14px 10px 14px"
+        p={isMobile ? '10px 10px 9px 10px' : '12px 14px 10px 14px'}
         style={{
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
           backgroundColor: '#ffffff',
+          minHeight: isMobile ? 54 : 60,
         }}
       >
         {/* Truncated File Title */}
@@ -367,7 +382,7 @@ export default function GalleryMediaCard({
             fw={700}
             truncate
             style={{
-              fontSize: '13px',
+              fontSize: isMobile ? '12px' : '13px',
               color: '#0f172a',
               lineHeight: 1.3,
               letterSpacing: '-0.01em',
@@ -378,10 +393,10 @@ export default function GalleryMediaCard({
         </Tooltip>
 
         {/* Sub-row: Calendar Date on Left, 3-Dots Menu on Right */}
-        <Group justify="space-between" align="center" mt={6} wrap="nowrap">
-          <Group gap={5} wrap="nowrap" align="center">
-            <Calendar size={13} color="#64748b" style={{ flexShrink: 0 }} />
-            <Text size="11.5px" fw={500} style={{ color: '#64748b', whiteSpace: 'nowrap' }}>
+        <Group justify="space-between" align="center" mt={isMobile ? 4 : 6} wrap="nowrap">
+          <Group gap={isMobile ? 3 : 5} wrap="nowrap" align="center">
+            <Calendar size={isMobile ? 11 : 13} color="#64748b" style={{ flexShrink: 0 }} />
+            <Text size={isMobile ? '10px' : '11.5px'} fw={500} style={{ color: '#64748b', whiteSpace: 'nowrap' }}>
               {file.formattedFileDate || '—'}
             </Text>
           </Group>
@@ -390,7 +405,7 @@ export default function GalleryMediaCard({
           <Menu shadow="md" width={185} position="bottom-end" withinPortal>
             <Menu.Target>
               <ActionIcon
-                size="26px"
+                size={isMobile ? '22px' : '26px'}
                 variant="subtle"
                 radius="md"
                 onClick={(e) => e.stopPropagation()}
@@ -400,7 +415,7 @@ export default function GalleryMediaCard({
                   '&:hover': { backgroundColor: '#f1f5f9', color: '#0f172a' },
                 }}
               >
-                <MoreVertical size={15} />
+                <MoreVertical size={isMobile ? 13 : 15} />
               </ActionIcon>
             </Menu.Target>
             <Menu.Dropdown onClick={(e) => e.stopPropagation()}>
@@ -413,7 +428,7 @@ export default function GalleryMediaCard({
               <Menu.Item
                 leftSection={<Download size={13} />}
                 component="a"
-                href={`${API_BASE_URL}/documents/${file.id}/download`}
+                href={getDownloadUrl(file.id)}
                 download={file.filename}
               >
                 Download

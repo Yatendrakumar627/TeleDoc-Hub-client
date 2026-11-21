@@ -19,6 +19,7 @@ import DataTable from '../../components/ui/DataTable';
 import EditableDocumentTitle from '../../components/ui/EditableDocumentTitle';
 import { formatBytes } from '../../utils/formatters';
 import { API_BASE_URL } from '../../config';
+import { getDownloadUrl } from '../../services/apiClient';
 
 export default function SheetTable({ document, content, onRenameFile, onCloseFile }) {
   const [activeSheetIndex, setActiveSheetIndex] = useState(0);
@@ -97,7 +98,7 @@ export default function SheetTable({ document, content, onRenameFile, onCloseFil
     window.document.body.removeChild(link);
   };
 
-  const downloadOriginalUrl = `${API_BASE_URL}/documents/${document.id}/download`;
+  const downloadOriginalUrl = getDownloadUrl(document.id);
 
   return (
     <Box p="lg" style={{ width: '100%', maxWidth: 1200, margin: '0 auto' }}>

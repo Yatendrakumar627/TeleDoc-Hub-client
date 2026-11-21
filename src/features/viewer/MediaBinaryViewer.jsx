@@ -50,6 +50,7 @@ import SearchFilterInput from '../../components/ui/SearchFilterInput';
 import EditableDocumentTitle from '../../components/ui/EditableDocumentTitle';
 import { formatBytes } from '../../utils/formatters';
 import { API_BASE_URL } from '../../config';
+import { getDownloadUrl, getThumbnailUrl } from '../../services/apiClient';
 
 export default function MediaBinaryViewer({
   document,
@@ -135,7 +136,7 @@ export default function MediaBinaryViewer({
   const streamUrl = `${API_BASE_URL}/documents/${document.id}/view?token=${encodeURIComponent(token)}`;
   // Videos and Audio always stream progressively via HTTP 206 Range requests like YouTube
   const activeMediaUrl = isVideo || isAudio ? streamUrl : (content?.dataUrl || streamUrl);
-  const downloadUrl = `${API_BASE_URL}/documents/${document.id}/download`;
+  const downloadUrl = getDownloadUrl(document.id);
 
   // Auto-scroll active thumbnail into view in filmstrip
   useEffect(() => {
@@ -813,7 +814,7 @@ export default function MediaBinaryViewer({
                     const isCurrent = img.id === document.id;
                     // Windowed virtualization: Render actual <img> within ±12 window around active photo, or when collection <= 24
                     const isWithinWindow = Math.abs(idx - currentIndex) <= 12 || imageFiles.length <= 24;
-                    const imgThumbUrl = `${API_BASE_URL}/documents/${img.id}/view?token=${encodeURIComponent(token)}`;
+                    const imgThumbUrl = getThumbnailUrl(img.id);
                     const tooltipText = `${img.title || img.filename} (${idx + 1} of ${imageFiles.length})`;
 
                     return (

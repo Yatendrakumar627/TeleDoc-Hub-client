@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { formatBytes, formatDate, extractDateFromName } from '../utils/formatters';
 import { API_BASE_URL } from '../config';
+import { getDownloadUrl } from '../services/apiClient';
 
 /**
  * Authentic Document Brand Icon (Word, PDF, Excel, PPT, Image, Video, Media)
@@ -672,7 +673,7 @@ export default function EmptyState({
             <>
               <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="sm">
               {filteredDocuments.slice(0, displayLimit).map((doc) => {
-                const downloadUrl = `${API_BASE_URL}/documents/${doc.id}/download`;
+                const downloadUrl = getDownloadUrl(doc.id);
                 const dateDisplay = doc.createdAt ? formatDate(doc.createdAt) : null;
                 const ext = (doc.filename || doc.title || '').split('.').pop().toUpperCase();
 

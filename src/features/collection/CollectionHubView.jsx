@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -57,7 +57,12 @@ import SourceBadge from '../../components/ui/SourceBadge';
 import { formatBytes, extractDateFromName } from '../../utils/formatters';
 import { getDocTypeMeta } from '../../utils/docTypes';
 import { API_BASE_URL } from '../../config';
-import { reorderDocuments, getCollections, getStoredToken } from '../../services/apiClient';
+import {
+  reorderDocuments,
+  getCollections,
+  getStoredToken,
+  getDownloadUrl,
+} from '../../services/apiClient';
 import GalleryMediaCard, { isImageFile, isVideoFile, isMediaFile } from './GalleryMediaCard';
 
 /**
@@ -310,6 +315,7 @@ export default function CollectionHubView({
   }, [selectedFileIds.length, batchMoveModalOpen, batchDeleteModalOpen]);
 
   const [collectionDisplayLimit, setCollectionDisplayLimit] = useState(36);
+  const loadMoreSentinelRef = useRef(null);
 
   useEffect(() => {
     setCollectionDisplayLimit(36);
@@ -385,6 +391,21 @@ export default function CollectionHubView({
       };
     });
   }, [orderedFiles, fileSortBy, mediaFilter]);
+
+  // Infinite Scroll IntersectionObserver: Automatically loads more items as user scrolls
+  useEffect(() => {
+    if (!loadMoreSentinelRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setCollectionDisplayLimit((prev) => prev + 36);
+        }
+      },
+      { rootMargin: '350px' }
+    );
+    observer.observe(loadMoreSentinelRef.current);
+    return () => observer.disconnect();
+  }, [displayedFilesWithMeta.length, collectionDisplayLimit]);
 
   // Handle Drag & Drop reordering in the grid
   const handleFileDrop = async (targetFileId, position) => {
@@ -967,8 +988,8 @@ export default function CollectionHubView({
       ) : (
         <>
           {viewMode === 'gallery' ? (
-            /* 1. Visual Photo & Video Gallery Grid (4 columns on desktop matching Mockup Image 2) */
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing={isMobile ? 'xs' : 'md'}>
+            /* 1. Visual Photo & Video Gallery Grid (2 columns on mobile, 4 on desktop) */
+            <SimpleGrid cols={{ base: 2, sm: 2, md: 3, lg: 4 }} spacing={isMobile ? 8 : 'md'}>
               {displayedFilesWithMeta.slice(0, collectionDisplayLimit).map((file) => {
                 const isDropBefore = dropTargetFileId === file.id && dropPosition === 'before';
                 const isDropAfter = dropTargetFileId === file.id && dropPosition === 'after';
@@ -1264,7 +1285,7 @@ export default function CollectionHubView({
                           radius="md"
                           variant="subtle"
                           component="a"
-                          href={`${API_BASE_URL}/documents/${file.id}/download`}
+                          href={getDownloadUrl(file.id)}
                           download={file.filename}
                           onClick={(e) => e.stopPropagation()}
                           style={{
@@ -1594,21 +1615,24 @@ export default function CollectionHubView({
       )}
 
         {displayedFilesWithMeta.length > collectionDisplayLimit && (
-          <Button
-            fullWidth
-            variant="subtle"
-            color="emerald"
-            size="sm"
-            mt="md"
-            onClick={() => setCollectionDisplayLimit((prev) => prev + 36)}
-            style={{
-              border: '1px dashed var(--brand-primary-border)',
-              backgroundColor: 'var(--surface-card)',
-              fontWeight: 600,
-            }}
-          >
-            Load More Files ({Math.min(collectionDisplayLimit, displayedFilesWithMeta.length)} of {displayedFilesWithMeta.length})
-          </Button>
+          <>
+            <div ref={loadMoreSentinelRef} style={{ height: 1 }} />
+            <Button
+              fullWidth
+              variant="subtle"
+              color="emerald"
+              size="sm"
+              mt="md"
+              onClick={() => setCollectionDisplayLimit((prev) => prev + 36)}
+              style={{
+                border: '1px dashed var(--brand-primary-border)',
+                backgroundColor: 'var(--surface-card)',
+                fontWeight: 600,
+              }}
+            >
+              Load More Files ({Math.min(collectionDisplayLimit, displayedFilesWithMeta.length)} of {displayedFilesWithMeta.length})
+            </Button>
+          </>
         )}
         </>
       )}

@@ -32,6 +32,7 @@ import SourceBadge from '../../components/ui/SourceBadge';
 import EditableDocumentTitle from '../../components/ui/EditableDocumentTitle';
 import { formatBytes } from '../../utils/formatters';
 import { API_BASE_URL } from '../../config';
+import { getDownloadUrl } from '../../services/apiClient';
 
 export default function PdfViewer({ document, content, onRenameFile, onCloseFile }) {
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -71,7 +72,7 @@ export default function PdfViewer({ document, content, onRenameFile, onCloseFile
   const streamUrl = `${API_BASE_URL}/documents/${document.id}/view?token=${encodeURIComponent(token)}`;
   const activePdfUrl = `${streamUrl}#page=1&zoom=page-width&view=FitH`;
   const rawPdfUrl = streamUrl;
-  const downloadUrl = `${API_BASE_URL}/documents/${document.id}/download`;
+  const downloadUrl = getDownloadUrl(document.id);
 
   const handlePrint = () => {
     const iframe = window.frames['pdf-embed-frame'];
