@@ -304,15 +304,16 @@ export default function Sidebar({
   const loadCollections = async () => {
     try {
       const data = await getCollections('all');
-      setCollections(data);
+      setCollections(Array.isArray(data) ? data : []);
     } catch (err) {
       console.warn('Sidebar collections fetch warning:', err.message);
+      setCollections([]);
     }
   };
 
   useEffect(() => {
     loadCollections();
-  }, [documents.length, collectionsVersion]);
+  }, [documents?.length, collectionsVersion]);
 
   const toggleFolder = (folderId, e) => {
     e.stopPropagation();
@@ -445,16 +446,22 @@ export default function Sidebar({
 
   // Multi-dimensional filtering and sorting logic
   const filteredDocs = useMemo(() => {
+    const safeDocs = Array.isArray(documents) ? documents : [];
     const q = debouncedSearch.trim().toLowerCase();
-    return documents
+    return safeDocs
       .filter((doc) => {
+        if (!doc) return false;
         // 1. Text Search (title, filename, tags, collection)
+        const docTitle = (doc.title || doc.filename || '').toLowerCase();
+        const docFilename = (doc.filename || '').toLowerCase();
+        const docColName = (doc.collectionName || '').toLowerCase();
+        const tags = Array.isArray(doc.taxonomy?.tags) ? doc.taxonomy.tags : [];
         const matchesSearch =
           !q ||
-          doc.title.toLowerCase().includes(q) ||
-          (doc.filename && doc.filename.toLowerCase().includes(q)) ||
-          (doc.collectionName && doc.collectionName.toLowerCase().includes(q)) ||
-          (doc.taxonomy?.tags && doc.taxonomy.tags.some((t) => t.includes(q)));
+          docTitle.includes(q) ||
+          docFilename.includes(q) ||
+          docColName.includes(q) ||
+          tags.some((t) => typeof t === 'string' && t.toLowerCase().includes(q));
 
         if (!matchesSearch) return false;
 
@@ -532,7 +539,8 @@ export default function Sidebar({
     const collectionsList = [];
 
     // Initialize map and list for all known collections matching scope
-    collections.forEach((col) => {
+    const safeCollections = Array.isArray(collections) ? collections : [];
+    safeCollections.forEach((col) => {
       if (scopeFilter === 'all' || col.scope === scopeFilter) {
         const entry = {
           collection: col,
@@ -546,7 +554,7 @@ export default function Sidebar({
     // Bucket for unassigned files
     const unassignedFiles = [];
 
-    filteredDocs.forEach((doc) => {
+    (filteredDocs || []).forEach((doc) => {
       if (doc.collectionId && map[doc.collectionId]) {
         map[doc.collectionId].files.push(doc);
       } else {
@@ -1043,10 +1051,10 @@ export default function Sidebar({
           }}
         >
           {viewMode === 'collections'
-            ? `${groupedCollections.collectionsList.length} Folders • ${filteredDocs.length} Files`
+            ? `${groupedCollections?.collectionsList?.length || 0} Folders • ${(filteredDocs || []).length} Files`
             : viewMode === 'groups'
-            ? `${groups.length} Groups • ${filteredDocs.length} Files`
-            : `${filteredDocs.length} Files`}
+            ? `${(groups || []).length} Groups • ${(filteredDocs || []).length} Files`
+            : `${(filteredDocs || []).length} Files`}
         </Text>
         {(scopeFilter !== 'all' || activeFilterCount > 0 || search) && (
           <Text
@@ -1638,7 +1646,7 @@ export default function Sidebar({
           ) : viewMode === 'collections' ? (
             // ================= COLLECTION-FIRST TREE VIEW =================
             <>
-              {groupedCollections.collectionsList.length === 0 && (
+              {(groupedCollections?.collectionsList?.length || 0) === 0 && (
                 <Paper p="sm" radius="md" withBorder ta="center" style={{ backgroundColor: 'var(--surface-card)', borderColor: 'var(--border-subtle)' }}>
                   <FolderPlus size={22} color="var(--brand-gold)" style={{ margin: '0 auto 6px' }} />
                   <Text size="xs" fw={600} style={{ color: 'var(--brand-forest)' }}>
@@ -1993,7 +2001,7 @@ export default function Sidebar({
               })}
 
               {/* Loose / unassigned files note in Folders view */}
-              {groupedCollections.unassignedFiles.length > 0 && (
+              {(groupedCollections?.unassignedFiles?.length || 0) > 0 && (
                 <Paper
                   p="xs"
                   my="xs"
@@ -2006,7 +2014,7 @@ export default function Sidebar({
                   }}
                 >
                   <Text size="11px" c="dimmed">
-                    {groupedCollections.unassignedFiles.length} loose {groupedCollections.unassignedFiles.length === 1 ? 'file' : 'files'} not in any folder.
+                    {(groupedCollections?.unassignedFiles?.length || 0)} loose {(groupedCollections?.unassignedFiles?.length || 0) === 1 ? 'file' : 'files'} not in any folder.
                   </Text>
                   <Text
                     size="11px"

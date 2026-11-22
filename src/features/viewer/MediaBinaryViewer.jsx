@@ -82,14 +82,17 @@ export default function MediaBinaryViewer({
   };
 
   const imageFiles = useMemo(() => {
-    const list = Array.isArray(collectionFiles) && collectionFiles.length > 0 ? collectionFiles : [document];
+    const list = Array.isArray(collectionFiles) && collectionFiles.length > 0
+      ? collectionFiles
+      : (document ? [document] : []);
     const filtered = list.filter(isImageDoc);
-    return filtered.length > 0 ? filtered : [document];
+    return filtered.length > 0 ? filtered : (document ? [document] : []);
   }, [collectionFiles, document]);
 
   const currentIndex = useMemo(() => {
-    return imageFiles.findIndex((f) => f.id === document.id);
-  }, [imageFiles, document.id]);
+    if (!document?.id) return -1;
+    return (imageFiles || []).findIndex((f) => f && f.id === document.id);
+  }, [imageFiles, document?.id]);
 
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex >= 0 && currentIndex < imageFiles.length - 1;

@@ -15,13 +15,15 @@ export default function CollectionNavBar({
 }) {
   const isMobile = useMediaQuery('(max-width: 768px)');
 
-  if (!collectionName || collectionName === 'Unassigned' || files.length <= 1) {
+  const safeFiles = Array.isArray(files) ? files : [];
+
+  if (!collectionName || collectionName === 'Unassigned' || safeFiles.length <= 1) {
     return null;
   }
 
-  const currentIndex = files.findIndex((f) => f.id === currentDocId);
-  const prevFile = currentIndex > 0 ? files[currentIndex - 1] : null;
-  const nextFile = currentIndex < files.length - 1 ? files[currentIndex + 1] : null;
+  const currentIndex = safeFiles.findIndex((f) => f.id === currentDocId);
+  const prevFile = currentIndex > 0 ? safeFiles[currentIndex - 1] : null;
+  const nextFile = currentIndex < safeFiles.length - 1 ? safeFiles[currentIndex + 1] : null;
 
   return (
     <Paper
@@ -79,14 +81,14 @@ export default function CollectionNavBar({
           </Tooltip>
 
           <Text size="xs" c="dimmed" className="mono-badge">
-            {currentIndex + 1} of {files.length}
+            {currentIndex + 1} of {safeFiles.length}
           </Text>
         </Group>
 
         {/* Center: Scrollable Horizontal Strip of Sister Files */}
         <ScrollArea style={{ flex: 1, maxWidth: 480 }} offsetScrollbars scrollbarSize={4}>
           <Group gap={6} wrap="nowrap" px="xs">
-            {files.map((file, idx) => {
+            {safeFiles.map((file, idx) => {
               const isActive = file.id === currentDocId;
               const meta = getDocTypeMeta(file.type, file.format);
               const Icon = meta.icon;

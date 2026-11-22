@@ -41,17 +41,22 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
-  // 1. Skip non-GET requests (e.g. POST uploads, PATCH, DELETE)
+  // 1. Only handle http and https requests (ignore chrome-extension:, moz-extension:, blob:, data:, etc.)
+  if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
+  // 2. Skip non-GET requests (e.g. POST uploads, PATCH, DELETE)
   if (request.method !== 'GET') {
     return;
   }
 
-  // 2. Skip backend API requests, Telegram streaming, and auth endpoints (never cache dynamic vault data)
+  // 3. Skip backend API requests, Telegram streaming, and auth endpoints (never cache dynamic vault data)
   if (url.pathname.startsWith('/api') || url.pathname.includes('/documents/') || url.pathname.includes('/auth/')) {
     return;
   }
 
-  // 3. Cache-First for Vite hashed static assets (/assets/*.js, /assets/*.css)
+  // 4. Cache-First for Vite hashed static assets (/assets/*.js, /assets/*.css)
   // Because Vite fingerprints assets with content hashes, these files are immutable and load instantaneously from cache.
   if (url.pathname.startsWith('/assets/')) {
     event.respondWith(
@@ -62,7 +67,11 @@ self.addEventListener('fetch', (event) => {
         return fetch(request).then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const clone = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, clone).catch((err) => {
+                console.warn('[TeleDoc SW] Cache put error:', err);
+              });
+            });
           }
           return networkResponse;
         });
@@ -71,7 +80,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4. Network-First with Cache Fallback for navigation and general static assets
+  // 5. Network-First with Cache Fallback for navigation and general static assets
   event.respondWith(
     fetch(request)
       .then((networkResponse) => {
@@ -79,7 +88,9 @@ self.addEventListener('fetch', (event) => {
         if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
+            cache.put(request, responseToCache).catch((err) => {
+              console.warn('[TeleDoc SW] Cache put error:', err);
+            });
           });
         }
         return networkResponse;

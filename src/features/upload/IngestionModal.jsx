@@ -76,9 +76,10 @@ export default function IngestionModal({
   const loadCollections = async () => {
     try {
       const list = await getCollections('all');
-      setCollections(list);
+      setCollections(Array.isArray(list) ? list : []);
     } catch (err) {
       console.warn('Could not load collections:', err.message);
+      setCollections([]);
     }
   };
 
@@ -420,7 +421,7 @@ export default function IngestionModal({
                 onChange={(v) => setSelectedCollectionId(v || '')}
                 data={[
                   { label: '📁 Inbox / Unassigned', value: '' },
-                  ...collections.map((c) => ({
+                  ...(collections || []).map((c) => ({
                     label: `📁 ${c.name} (${c.scope === 'personal' ? 'Personal' : 'Work'})`,
                     value: c.id,
                   })),
