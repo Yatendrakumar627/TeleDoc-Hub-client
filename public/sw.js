@@ -41,8 +41,9 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
-  // 1. Only handle http and https requests (ignore chrome-extension:, moz-extension:, blob:, data:, etc.)
-  if (!url.protocol.startsWith('http')) {
+  // 1. Only handle same-origin HTTP and HTTPS requests
+  // Ignore chrome-extension:, moz-extension:, blob:, data:, and all cross-origin requests (e.g. Render backend, CDNs)
+  if (!url.protocol.startsWith('http') || url.origin !== self.location.origin) {
     return;
   }
 
@@ -51,8 +52,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Skip backend API requests, Telegram streaming, and auth endpoints (never cache dynamic vault data)
-  if (url.pathname.startsWith('/api') || url.pathname.includes('/documents/') || url.pathname.includes('/auth/')) {
+  // 3. Skip backend API requests, Telegram streaming, views, thumbnails, and auth endpoints (never cache dynamic vault data)
+  if (
+    url.pathname.startsWith('/api') ||
+    url.pathname.includes('/documents/') ||
+    url.pathname.includes('/view') ||
+    url.pathname.includes('/thumbnail') ||
+    url.pathname.includes('/auth/')
+  ) {
     return;
   }
 

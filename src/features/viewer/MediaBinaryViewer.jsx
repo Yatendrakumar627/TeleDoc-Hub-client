@@ -749,6 +749,7 @@ export default function MediaBinaryViewer({
             <img
               src={activeMediaUrl}
               alt={document.title}
+              crossOrigin="anonymous"
               decoding="async"
               onLoad={(e) => {
                 setDimensions({
@@ -851,6 +852,7 @@ export default function MediaBinaryViewer({
                           <img
                             src={imgThumbUrl}
                             alt={img.title || img.filename}
+                            crossOrigin="anonymous"
                             loading="lazy"
                             decoding="async"
                             style={{

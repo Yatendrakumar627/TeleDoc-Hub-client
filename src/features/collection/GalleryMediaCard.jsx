@@ -186,6 +186,7 @@ export default function GalleryMediaCard({
           <img
             src={fallbackTried ? mediaUrl : thumbUrl}
             alt={file.title}
+            crossOrigin="anonymous"
             loading="lazy"
             decoding="async"
             onLoad={() => setImgLoaded(true)}
@@ -211,6 +212,7 @@ export default function GalleryMediaCard({
             <img
               src={thumbUrl}
               alt={file.title}
+              crossOrigin="anonymous"
               loading="lazy"
               decoding="async"
               className="gallery-thumb-image"
