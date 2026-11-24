@@ -90,11 +90,13 @@ export default function PdfViewer({ document, content, onRenameFile, onCloseFile
 
   return (
     <Box
-      p={isMobile ? 6 : isFullscreen ? 'xs' : 'lg'}
+      p={isMobile ? 6 : isFullscreen ? 'xs' : 12}
+      className="luxury-hero-canvas"
       style={{
-        maxWidth: isFullscreen ? '100%' : 1100,
+        maxWidth: '100%',
         margin: '0 auto',
         width: '100%',
+        boxSizing: 'border-box',
         transition: 'all 0.2s ease-in-out',
       }}
     >

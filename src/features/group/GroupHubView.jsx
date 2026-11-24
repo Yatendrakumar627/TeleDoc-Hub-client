@@ -357,7 +357,15 @@ export default function GroupHubView({
   };
 
   return (
-    <Box p={isMobile ? 'xs' : 'lg'}>
+    <Box
+      p={isMobile ? 8 : 12}
+      className="luxury-hero-canvas"
+      style={{
+        width: '100%',
+        minHeight: 'calc(100vh - 65px)',
+        boxSizing: 'border-box',
+      }}
+    >
       {/* 1-Click Back to Main Page Breadcrumb Navigation */}
       {onNavigateHome && (
         <Group gap={6} mb="sm" align="center">
@@ -543,7 +551,7 @@ export default function GroupHubView({
           </Group>
 
           {displayedCols.length > 0 ? (
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4, xl: 5 }} spacing={isMobile ? 8 : 12}>
               {displayedCols.map((col) => {
                 const isDropTargetBefore = dropTargetColId === col.id && colDropPosition === 'before';
                 const isDropTargetAfter = dropTargetColId === col.id && colDropPosition === 'after';
@@ -764,7 +772,7 @@ export default function GroupHubView({
           </Group>
 
           {documents.length > 0 ? (
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4, xl: 5 }} spacing={isMobile ? 8 : 12}>
               {documents.map((doc) => (
                 <FileCard
                   key={doc.id}

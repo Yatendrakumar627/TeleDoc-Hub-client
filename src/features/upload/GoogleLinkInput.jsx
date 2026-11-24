@@ -49,9 +49,10 @@ export default function GoogleLinkInput({
           onChange={(e) => setUrl(e.currentTarget.value)}
           radius="md"
           size={isMobile ? 'xs' : 'sm'}
+          rightSectionWidth={isMobile ? 76 : 84}
           styles={{
             input: {
-              paddingRight: isMobile ? 74 : 80,
+              paddingRight: isMobile ? 76 : 84,
               height: isMobile ? '32px' : '36px',
               fontSize: isMobile ? '12px' : '13px',
               backgroundColor: 'var(--surface-card)',

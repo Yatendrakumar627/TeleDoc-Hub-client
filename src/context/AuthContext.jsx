@@ -91,8 +91,8 @@ export function AuthProvider({ children }) {
       setUser(res.user);
       setToken(res.token);
       notifications.show({
-        title: 'Vault Account Created',
-        message: `Account created. Zero-knowledge encryption key initialized.`,
+        title: 'Account Created',
+        message: 'Welcome! Your account has been created successfully.',
         color: 'teal',
       });
       return res;

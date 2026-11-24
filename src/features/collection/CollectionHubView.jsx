@@ -20,6 +20,7 @@ import {
   Divider,
   Menu,
   Checkbox,
+  Pagination,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import {
@@ -314,12 +315,12 @@ export default function CollectionHubView({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedFileIds.length, batchMoveModalOpen, batchDeleteModalOpen]);
 
-  const [collectionDisplayLimit, setCollectionDisplayLimit] = useState(36);
-  const loadMoreSentinelRef = useRef(null);
+  const [collectionPage, setCollectionPage] = useState(1);
+  const [collectionPageSize, setCollectionPageSize] = useState(100);
 
   useEffect(() => {
-    setCollectionDisplayLimit(36);
-  }, [collection?.id, fileSortBy, mediaFilter]);
+    setCollectionPage(1);
+  }, [collection?.id, fileSortBy, mediaFilter, collectionPageSize]);
 
   // Sort and filter files according to chosen mode and filter
   const displayedFilesWithMeta = useMemo(() => {
@@ -392,20 +393,14 @@ export default function CollectionHubView({
     });
   }, [orderedFiles, fileSortBy, mediaFilter]);
 
-  // Infinite Scroll IntersectionObserver: Automatically loads more items as user scrolls
-  useEffect(() => {
-    if (!loadMoreSentinelRef.current) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          setCollectionDisplayLimit((prev) => prev + 36);
-        }
-      },
-      { rootMargin: '350px' }
-    );
-    observer.observe(loadMoreSentinelRef.current);
-    return () => observer.disconnect();
-  }, [displayedFilesWithMeta.length, collectionDisplayLimit]);
+  // 100-Item High Performance Pagination Calculation
+  const totalCollectionPages = Math.max(1, Math.ceil(displayedFilesWithMeta.length / collectionPageSize));
+  const currentCollectionPage = Math.min(collectionPage, totalCollectionPages);
+  const colStartIndex = (currentCollectionPage - 1) * collectionPageSize;
+  const colEndIndex = Math.min(colStartIndex + collectionPageSize, displayedFilesWithMeta.length);
+  const paginatedCollectionFiles = useMemo(() => {
+    return displayedFilesWithMeta.slice(colStartIndex, colEndIndex);
+  }, [displayedFilesWithMeta, colStartIndex, colEndIndex]);
 
   // Handle Drag & Drop reordering in the grid
   const handleFileDrop = async (targetFileId, position) => {
@@ -578,10 +573,18 @@ export default function CollectionHubView({
   }, [selectedFiles]);
 
   return (
-    <Box p={isMobile ? 'xs' : 'lg'} style={{ maxWidth: 1180, margin: '0 auto', width: '100%' }}>
+    <Box
+      p={isMobile ? 8 : 12}
+      className="luxury-hero-canvas"
+      style={{
+        width: '100%',
+        minHeight: 'calc(100vh - 65px)',
+        boxSizing: 'border-box',
+      }}
+    >
       {/* 1-Click Back to Main Page Breadcrumb Navigation */}
       {onNavigateHome && (
-        <Group gap={6} mb="sm" align="center">
+        <Group gap={6} mb={8} align="center">
           <Button
             variant="subtle"
             size="xs"
@@ -607,8 +610,8 @@ export default function CollectionHubView({
       )}
 
       {/* Collection Hero Header */}
-      <Paper p={isMobile ? 'sm' : 'lg'} radius="md" withBorder mb="lg" style={{ backgroundColor: '#ffffff', boxShadow: 'var(--shadow-card)' }}>
-        <Stack gap="sm">
+      <Paper p={isMobile ? 'xs' : 'sm'} radius="md" withBorder mb="sm" style={{ backgroundColor: '#ffffff', boxShadow: 'var(--shadow-card)' }}>
+        <Stack gap="xs">
           <Group justify="space-between" align="flex-start" wrap="wrap">
             <Group gap="sm" align="flex-start">
               <Box
@@ -647,7 +650,7 @@ export default function CollectionHubView({
                     {files.length} {files.length === 1 ? 'file' : 'files'}
                   </Badge>
                   <Badge color="teal" variant="light" size="xs" leftSection={<Lock size={10} />}>
-                    AES-256 Vault Encrypted
+                    Encrypted
                   </Badge>
                 </Group>
 
@@ -712,7 +715,7 @@ export default function CollectionHubView({
       </Paper>
 
       {/* Visual Header Section (Exact Match to Mockup Image 2) */}
-      <Group justify="space-between" align="center" mb="lg" px={4} wrap="wrap" gap="md">
+      <Group justify="space-between" align="center" mb="sm" px={2} wrap="wrap" gap="md">
         {/* Left Side: Green Rounded Brand Icon + Title + Dynamic Subtitle */}
         <Group gap="sm" align="center" wrap="nowrap">
           <Box
@@ -987,10 +990,19 @@ export default function CollectionHubView({
         </Paper>
       ) : (
         <>
+          <div id="collection-files-grid-anchor" style={{ scrollMarginTop: 80 }} />
           {viewMode === 'gallery' ? (
-            /* 1. Visual Photo & Video Gallery Grid (2 columns on mobile, 4 on desktop) */
-            <SimpleGrid cols={{ base: 2, sm: 2, md: 3, lg: 4 }} spacing={isMobile ? 8 : 'md'}>
-              {displayedFilesWithMeta.slice(0, collectionDisplayLimit).map((file) => {
+            /* 1. Visual Photo & Video Gallery Grid (2 columns on mobile, fluid auto-fill according to width on desktop) */
+            <Box
+              style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile
+                  ? 'repeat(2, minmax(0, 1fr))'
+                  : 'repeat(auto-fill, minmax(210px, 1fr))',
+                gap: isMobile ? 8 : 12,
+              }}
+            >
+              {paginatedCollectionFiles.map((file) => {
                 const isDropBefore = dropTargetFileId === file.id && dropPosition === 'before';
                 const isDropAfter = dropTargetFileId === file.id && dropPosition === 'after';
                 const isSelected = selectedFileIds.includes(file.id);
@@ -1054,11 +1066,19 @@ export default function CollectionHubView({
                   />
                 );
               })}
-            </SimpleGrid>
+            </Box>
           ) : (
-            /* 2. Detailed Document Card List (3 columns matching Image 1) */
-            <SimpleGrid cols={{ base: 1, md: 2, xl: 3 }} spacing={isMobile ? 'xs' : 'md'}>
-          {displayedFilesWithMeta.slice(0, collectionDisplayLimit).map((file) => {
+            /* 2. Detailed Document Card List (Fluid auto-fill according to width) */
+            <Box
+              style={{
+                display: 'grid',
+                gridTemplateColumns: isMobile
+                  ? 'repeat(1, minmax(0, 1fr))'
+                  : 'repeat(auto-fill, minmax(280px, 1fr))',
+                gap: isMobile ? 8 : 12,
+              }}
+            >
+          {paginatedCollectionFiles.map((file) => {
             const meta = getDocTypeMeta(file.type, file.format);
             const isDragging = draggedFileId === file.id;
             const isDropBefore = dropTargetFileId === file.id && dropPosition === 'before';
@@ -1611,28 +1631,91 @@ export default function CollectionHubView({
               </Card>
             );
           })}
-        </SimpleGrid>
+        </Box>
       )}
 
-        {displayedFilesWithMeta.length > collectionDisplayLimit && (
-          <>
-            <div ref={loadMoreSentinelRef} style={{ height: 1 }} />
-            <Button
-              fullWidth
-              variant="subtle"
-              color="emerald"
-              size="sm"
-              mt="md"
-              onClick={() => setCollectionDisplayLimit((prev) => prev + 36)}
-              style={{
-                border: '1px dashed var(--brand-primary-border)',
-                backgroundColor: 'var(--surface-card)',
-                fontWeight: 600,
-              }}
-            >
-              Load More Files ({Math.min(collectionDisplayLimit, displayedFilesWithMeta.length)} of {displayedFilesWithMeta.length})
-            </Button>
-          </>
+        {/* Clean 100-Item Numbered Pagination Bar with Range Stats and Controls */}
+        {displayedFilesWithMeta.length > 0 && (
+          <Paper
+            py={7}
+            px={isMobile ? 8 : 12}
+            radius="md"
+            withBorder
+            mt={10}
+            style={{
+              backgroundColor: '#ffffff',
+              borderColor: 'rgba(24, 88, 68, 0.12)',
+              boxShadow: '0 1px 4px rgba(0, 0, 0, 0.02)',
+            }}
+          >
+            <Group justify="space-between" align="center" wrap="wrap" gap="xs">
+              {/* File range text */}
+              <Text size="xs" c="dimmed" fw={500} style={{ fontSize: isMobile ? '10.5px' : '11.5px' }}>
+                Showing <Text span fw={700} c="var(--brand-forest)">{displayedFilesWithMeta.length === 0 ? 0 : colStartIndex + 1}–{colEndIndex}</Text> of <Text span fw={700} c="var(--brand-forest)">{displayedFilesWithMeta.length}</Text> files
+                {totalCollectionPages > 1 && (
+                  <Text span c="dimmed" ml={6}>
+                    (Page {currentCollectionPage} of {totalCollectionPages})
+                  </Text>
+                )}
+              </Text>
+
+              {/* Numbered Pagination Control */}
+              {totalCollectionPages > 1 && (
+                <Pagination
+                  value={currentCollectionPage}
+                  onChange={(newPage) => {
+                    setCollectionPage(newPage);
+                    const anchor = document.getElementById('collection-files-grid-anchor');
+                    if (anchor) {
+                      anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }}
+                  total={totalCollectionPages}
+                  color="emerald"
+                  size={isMobile ? 'xs' : 'sm'}
+                  radius="md"
+                  withEdges
+                  boundaries={isMobile ? 0 : 1}
+                  siblings={isMobile ? 0 : 1}
+                  styles={{
+                    control: {
+                      fontSize: isMobile ? '11px' : '12px',
+                      fontWeight: 600,
+                    },
+                  }}
+                />
+              )}
+
+              {/* Items Per Page Selector */}
+              <Group gap={6} align="center">
+                <Text size="11px" c="dimmed" fw={500}>Per page:</Text>
+                <Select
+                  size="xs"
+                  radius="md"
+                  value={String(collectionPageSize)}
+                  onChange={(val) => {
+                    setCollectionPageSize(Number(val) || 100);
+                    setCollectionPage(1);
+                  }}
+                  data={[
+                    { value: '50', label: '50' },
+                    { value: '100', label: '100' },
+                    { value: '200', label: '200' },
+                    { value: '500', label: '500' },
+                  ]}
+                  styles={{
+                    input: {
+                      height: 26,
+                      minHeight: 26,
+                      width: isMobile ? 80 : 95,
+                      fontSize: '11px',
+                      fontWeight: 600,
+                    },
+                  }}
+                />
+              </Group>
+            </Group>
+          </Paper>
         )}
         </>
       )}

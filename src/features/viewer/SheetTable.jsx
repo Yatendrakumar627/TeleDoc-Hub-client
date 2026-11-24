@@ -12,6 +12,7 @@ import {
   Divider,
   ActionIcon,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import { Table2, Download, ShieldCheck, ExternalLink, FileSpreadsheet, Lock, X, ArrowLeft } from 'lucide-react';
 import SourceBadge from '../../components/ui/SourceBadge';
 import SearchFilterInput from '../../components/ui/SearchFilterInput';
@@ -22,6 +23,7 @@ import { API_BASE_URL } from '../../config';
 import { getDownloadUrl } from '../../services/apiClient';
 
 export default function SheetTable({ document, content, onRenameFile, onCloseFile }) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [activeSheetIndex, setActiveSheetIndex] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortCol, setSortCol] = useState(null);
@@ -101,12 +103,22 @@ export default function SheetTable({ document, content, onRenameFile, onCloseFil
   const downloadOriginalUrl = getDownloadUrl(document.id);
 
   return (
-    <Box p="lg" style={{ width: '100%', maxWidth: 1200, margin: '0 auto' }}>
+    <Box
+      p={isMobile ? 6 : 12}
+      className="luxury-hero-canvas"
+      style={{
+        width: '100%',
+        maxWidth: '100%',
+        margin: '0 auto',
+        boxSizing: 'border-box',
+        minHeight: 'calc(100vh - 65px)',
+      }}
+    >
       {/* Top Header Card */}
       <Paper
-        p="md"
+        p={isMobile ? 'xs' : 'sm'}
         radius="md"
-        mb="md"
+        mb={isMobile ? 8 : 12}
         className="premium-header-card"
         style={{ border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}
       >

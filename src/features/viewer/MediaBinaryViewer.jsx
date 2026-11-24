@@ -15,6 +15,7 @@ import {
   Select,
   ScrollArea,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   Download,
   Lock,
@@ -60,6 +61,7 @@ export default function MediaBinaryViewer({
   onRenameFile,
   onCloseFile,
 }) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const format = (content?.format || document?.format || '').toLowerCase();
   const docType = (document?.type || content?.type || '').toLowerCase();
 
@@ -359,19 +361,22 @@ export default function MediaBinaryViewer({
 
   return (
     <Box
-      p={isFullscreen ? 'xs' : 'lg'}
+      p={isFullscreen ? 'xs' : isMobile ? 6 : 12}
+      className="luxury-hero-canvas"
       style={{
-        maxWidth: isFullscreen ? '100%' : 1100,
+        maxWidth: '100%',
         margin: '0 auto',
         width: '100%',
+        boxSizing: 'border-box',
+        minHeight: 'calc(100vh - 65px)',
         transition: 'all 0.2s ease-in-out',
       }}
     >
       {/* 1. Polished Header Card - Metadata, Badges & Actions */}
       <Paper
-        p="md"
+        p={isMobile ? 'xs' : 'sm'}
         radius="md"
-        mb="md"
+        mb={isMobile ? 8 : 12}
         className="premium-header-card"
         style={{
           border: '1px solid var(--border-card)',
@@ -402,7 +407,7 @@ export default function MediaBinaryViewer({
 
                 {document.security?.isEncrypted && (
                   <Badge color="teal" variant="light" size="xs" leftSection={<Lock size={10} />} className="badge-emerald">
-                    AES-256 Zero-Knowledge Encrypted
+                    Encrypted
                   </Badge>
                 )}
 
@@ -1059,11 +1064,11 @@ export default function MediaBinaryViewer({
       ) : isVideo ? (
         /* Video Player Stage */
         <Paper
-          p="xs"
+          p={isMobile ? 4 : 'xs'}
           radius="md"
           withBorder
           ta="center"
-          style={{ backgroundColor: '#050811', overflow: 'hidden', position: 'relative' }}
+          style={{ backgroundColor: '#050811', overflow: 'hidden', position: 'relative', width: '100%' }}
         >
           {videoError && (
             <Box

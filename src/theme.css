@@ -603,6 +603,47 @@ body {
   }
 }
 
+/* -------------------------------------------------------------------------
+   20. Executive Dashboard & Card Micro-Interactions
+   ------------------------------------------------------------------------- */
+@keyframes vaultPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
 
+.vault-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #10b981;
+  animation: vaultPulse 2s infinite ease-in-out;
+}
 
+.filecard-clickable {
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, border-color 0.18s ease !important;
+}
+
+.filecard-clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px -3px rgba(16, 47, 39, 0.09), 0 3px 8px -2px rgba(16, 47, 39, 0.04) !important;
+  border-color: rgba(176, 138, 79, 0.5) !important;
+}
+
+.filecard-clickable:hover .open-arrow-icon {
+  transform: translateX(3px);
+}
+
+.filecard-clickable:hover .file-card-title {
+  color: var(--brand-primary) !important;
+}
 

@@ -275,7 +275,7 @@ export default function IngestionModal({
       onClose={onClose}
       title={
         step === 'upload'
-          ? (targetCollection ? `Upload to "${targetCollection.name}"` : 'Upload to Zero-Knowledge Vault')
+          ? (targetCollection ? `Upload to "${targetCollection.name}"` : 'Upload Files')
           : 'Organize into Collection'
       }
     >
@@ -369,7 +369,7 @@ export default function IngestionModal({
 
                 <Alert color="emerald" variant="light" radius="md">
                   <Text size="xs">
-                    💡 TeleDoc Hub will fetch the snapshot, encrypt it with AES-256, and archive it into your Cloud Vault.
+                    💡 TeleDoc Hub will fetch the document snapshot and save it directly to your Vault.
                   </Text>
                 </Alert>
 
@@ -415,19 +415,19 @@ export default function IngestionModal({
                     {getUploadedDocs().length > 0 && getFailedFiles().length > 0
                       ? `${getUploadedDocs().length} Succeeded • ${getFailedFiles().length} Failed`
                       : getUploadedDocs().length > 1
-                      ? `${getUploadedDocs().length} Individual Files Uploaded & Encrypted!`
-                      : 'Uploaded & Vault Encrypted!'}
+                      ? `${getUploadedDocs().length} Files Uploaded Successfully!`
+                      : 'Uploaded Successfully!'}
                   </Text>
                   <Text size="xs" c="dimmed">
                     {getUploadedDocs().length > 0
-                      ? 'Each saved file stored as an independent instance with its own AES-256 key'
+                      ? 'Files are saved and ready to organize into collections.'
                       : 'No files were uploaded to the vault.'}
                   </Text>
                 </Box>
               </Group>
               <Group gap="xs">
                 <Badge color="teal" variant="light" leftSection={<Lock size={10} />}>
-                  Zero-Knowledge AES-256
+                  Secure
                 </Badge>
                 {getFailedFiles().length > 0 && (
                   <Button

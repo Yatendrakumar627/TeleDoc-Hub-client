@@ -2,12 +2,19 @@
  * Common formatting helpers
  */
 
-export const formatBytes = (bytes) => {
+export const formatBytes = (bytes, decimals = 1) => {
   if (!bytes || bytes === 0) return '0 B';
   const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  const safeI = Math.min(Math.max(0, i), sizes.length - 1);
+  return `${parseFloat((bytes / Math.pow(k, safeI)).toFixed(dm))} ${sizes[safeI]}`;
+};
+
+export const formatNumber = (num) => {
+  if (num === null || num === undefined) return '0';
+  return Number(num).toLocaleString('en-US');
 };
 
 export const formatReadingTime = (wordCount, wordsPerMinute = 200) => {

@@ -13,6 +13,7 @@ import {
   Divider,
   ScrollArea,
 } from '@mantine/core';
+import { useMediaQuery } from '@mantine/hooks';
 import {
   Presentation,
   Download,
@@ -34,6 +35,7 @@ import { API_BASE_URL } from '../../config';
 import { getDownloadUrl } from '../../services/apiClient';
 
 export default function PresentationViewer({ document, content, onRenameFile, onCloseFile }) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -60,19 +62,22 @@ export default function PresentationViewer({ document, content, onRenameFile, on
 
   return (
     <Box
-      p={isFullscreen ? 'xs' : 'lg'}
+      p={isFullscreen ? 'xs' : isMobile ? 6 : 12}
+      className="luxury-hero-canvas"
       style={{
-        maxWidth: isFullscreen ? '100%' : 1100,
+        maxWidth: '100%',
         margin: '0 auto',
         width: '100%',
+        boxSizing: 'border-box',
+        minHeight: 'calc(100vh - 65px)',
         transition: 'all 0.2s ease-in-out',
       }}
     >
       {/* Top Header Card */}
       <Paper
-        p="md"
+        p={isMobile ? 'xs' : 'sm'}
         radius="md"
-        mb="md"
+        mb={isMobile ? 8 : 12}
         className="premium-header-card"
         style={{ border: '1px solid var(--border-card)', boxShadow: 'var(--shadow-card)' }}
       >
