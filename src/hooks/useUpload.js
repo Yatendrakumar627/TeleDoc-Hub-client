@@ -4,7 +4,7 @@ import { notifications } from '@mantine/notifications';
 import { extractErrorMessage } from '../utils/formatters';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB limit with smart auto-compression
-const BATCH_SIZE = 2; // Process in small batches of 2 files to prevent HTTP timeouts & Telegram rate limits
+const BATCH_SIZE = 1; // Atomic single-file pipeline: ensures per-file resilience, eliminates memory spikes, & enables exact failure tracking
 
 export function useUpload(onSuccess) {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -39,27 +39,34 @@ export function useUpload(onSuccess) {
     }
   };
 
-  // Upload local file(s)
+  // Upload local file(s) with full resilience for 200+ files
   const uploadFile = useCallback(
     async (fileOrFiles, options = {}) => {
       setError('');
       setUploadStatusText('');
 
-      if (!fileOrFiles) return;
+      if (!fileOrFiles) return null;
       const fileList = Array.isArray(fileOrFiles) ? fileOrFiles : [fileOrFiles];
-      if (fileList.length === 0) return;
+      if (fileList.length === 0) return null;
 
       // 50 MB size validation per file
+      const validFiles = [];
+      const oversizedFiles = [];
       for (const f of fileList) {
         if (f.size > MAX_FILE_SIZE) {
-          const msg = `File "${f.name}" (${(f.size / (1024 * 1024)).toFixed(1)} MB) exceeds the 50 MB limit.`;
-          setError(msg);
-          throw new Error(msg);
+          oversizedFiles.push({
+            file: f,
+            filename: f.name,
+            size: f.size,
+            error: `File exceeds 50 MB limit (${(f.size / (1024 * 1024)).toFixed(1)} MB)`,
+          });
+        } else {
+          validFiles.push(f);
         }
       }
 
       setIsProcessing(true);
-      setUploadProgress(5);
+      setUploadProgress(2);
       setUploadStatusText(
         fileList.length > 1
           ? `Preparing ${fileList.length} files for upload & encryption...`
@@ -67,90 +74,159 @@ export function useUpload(onSuccess) {
       );
 
       const allCreatedDocs = [];
+      const allFailedFiles = [...oversizedFiles];
       let firstContent = null;
       const totalFiles = fileList.length;
 
       try {
-        // Chunk into small batches to guarantee fast processing and prevent timeouts
-        for (let b = 0; b < totalFiles; b += BATCH_SIZE) {
-          const chunk = fileList.slice(b, b + BATCH_SIZE);
-          const startIdx = b + 1;
-          const endIdx = Math.min(b + BATCH_SIZE, totalFiles);
-          const label =
-            totalFiles > 1
-              ? `Encrypting & saving files ${startIdx}${endIdx > startIdx ? `-${endIdx}` : ''} of ${totalFiles}...`
-              : `Encrypting & saving "${chunk[0].name}"...`;
+        for (let i = 0; i < validFiles.length; i++) {
+          const currentFile = validFiles[i];
+          const fileIndex = i + 1;
+          const totalValid = validFiles.length;
 
-          setUploadStatusText(label);
+          let fileSuccess = false;
+          let attempts = 0;
+          const MAX_RETRIES = 3;
 
-          let chunkRes = null;
-          try {
-            chunkRes = await uploadDocument(
-              chunk,
-              (percent) => {
-                const baseProgress = Math.round((b / totalFiles) * 100);
-                const chunkWeight = (chunk.length / totalFiles) * 100;
-                const overallPercent = Math.min(98, Math.round(baseProgress + (percent * chunkWeight) / 100));
-                setUploadProgress(overallPercent);
-              },
-              options
-            );
-          } catch (err) {
-            const isTimeout =
-              err.code === 'ECONNABORTED' ||
-              (typeof err.message === 'string' &&
-                (err.message.toLowerCase().includes('timeout') || err.message.includes('exceeded')));
+          while (attempts < MAX_RETRIES && !fileSuccess) {
+            attempts++;
+            try {
+              const basePercent = Math.round((i / totalValid) * 100);
+              setUploadProgress(Math.max(5, basePercent));
 
-            if (isTimeout) {
-              // Wait 2.5s for server event-loop write to finalize, then auto-reconcile
-              setUploadStatusText('Verifying server synchronization...');
-              await new Promise((r) => setTimeout(r, 2500));
-              const recovered = await verifyVaultDocuments(
-                chunk.map((f) => f.name),
-                options.collectionId
+              const successCount = allCreatedDocs.length;
+              const failCount = allFailedFiles.length;
+              const statsSuffix =
+                totalFiles > 1
+                  ? ` • ${successCount} saved${failCount > 0 ? `, ${failCount} failed` : ''}`
+                  : '';
+
+              setUploadStatusText(
+                totalFiles > 1
+                  ? `Encrypting & uploading (${fileIndex}/${totalValid}): "${currentFile.name}"${statsSuffix}...`
+                  : `Encrypting & uploading "${currentFile.name}"...`
               );
 
-              if (recovered && recovered.length > 0) {
-                console.log(`[useUpload] Auto-reconciled ${recovered.length} files that saved in background.`);
-                chunkRes = {
-                  success: true,
-                  documents: recovered,
-                  document: recovered[0],
-                };
-              } else {
-                throw err;
+              const res = await uploadDocument(
+                [currentFile],
+                (percent) => {
+                  const fileWeight = (1 / totalValid) * 100;
+                  const overallPercent = Math.min(99, Math.round(basePercent + (percent * fileWeight) / 100));
+                  setUploadProgress(overallPercent);
+                },
+                options
+              );
+
+              if (res) {
+                const docs = res.documents || (res.document ? [res.document] : []);
+                if (docs.length > 0) {
+                  allCreatedDocs.push(...docs);
+                  if (!firstContent && res.content) {
+                    firstContent = res.content;
+                  }
+                  fileSuccess = true;
+                }
               }
-            } else {
-              throw err;
+            } catch (err) {
+              const isRateLimit =
+                err.response?.status === 429 ||
+                err.response?.data?.isRateLimit ||
+                (typeof err.message === 'string' && err.message.toLowerCase().includes('too many requests')) ||
+                (typeof err.response?.data?.error === 'string' &&
+                  err.response.data.error.toLowerCase().includes('too many requests'));
+
+              const retryAfter =
+                err.response?.data?.retryAfter ||
+                (typeof err.response?.data?.error === 'string' &&
+                err.response.data.error.match(/retry after (\d+)/i)
+                  ? parseInt(err.response.data.error.match(/retry after (\d+)/i)[1], 10)
+                  : 25);
+
+              if (isRateLimit) {
+                // Telegram 20 msgs/min rate limit reached: do clean visible countdown
+                let remainingSecs = Math.max(5, retryAfter);
+                while (remainingSecs > 0) {
+                  setUploadStatusText(
+                    `⏳ Telegram rate limit reached. Pausing ${remainingSecs}s before auto-resuming (File ${fileIndex} of ${totalValid})...`
+                  );
+                  await new Promise((r) => setTimeout(r, 1000));
+                  remainingSecs--;
+                }
+                // Rate-limit cooldown resets quota: do not count as a failed retry
+                attempts--;
+                continue;
+              }
+
+              const isTimeout =
+                err.code === 'ECONNABORTED' ||
+                (typeof err.message === 'string' &&
+                  (err.message.toLowerCase().includes('timeout') || err.message.includes('exceeded')));
+
+              if (isTimeout) {
+                setUploadStatusText(`Verifying vault synchronization for "${currentFile.name}"...`);
+                await new Promise((r) => setTimeout(r, 2000));
+                const recovered = await verifyVaultDocuments([currentFile.name], options.collectionId);
+
+                if (recovered && recovered.length > 0) {
+                  allCreatedDocs.push(...recovered);
+                  fileSuccess = true;
+                  break;
+                }
+              }
+
+              if (attempts < MAX_RETRIES) {
+                setUploadStatusText(
+                  `Upload paused. Retrying "${currentFile.name}" (attempt ${attempts + 1} of ${MAX_RETRIES})...`
+                );
+                await new Promise((r) => setTimeout(r, 1500 * attempts));
+              } else {
+                // File permanently failed after all retries: record and continue queue!
+                allFailedFiles.push({
+                  file: currentFile,
+                  filename: currentFile.name,
+                  size: currentFile.size,
+                  error: extractErrorMessage(err, 'Failed after multiple attempts'),
+                });
+              }
             }
           }
 
-          if (chunkRes) {
-            const docs = chunkRes.documents || (chunkRes.document ? [chunkRes.document] : []);
-            allCreatedDocs.push(...docs);
-            if (!firstContent && chunkRes.content) {
-              firstContent = chunkRes.content;
-            }
-          }
-
-          const completedPercent = Math.min(99, Math.round((endIdx / totalFiles) * 100));
-          setUploadProgress(completedPercent);
+          // Polite 300ms breather between requests to prevent socket congestion
+          await new Promise((r) => setTimeout(r, 300));
         }
 
         setUploadProgress(100);
-        setUploadStatusText('Upload complete! Finalizing vault records...');
+        setUploadStatusText('Upload queue complete!');
 
         const finalResult = {
-          success: true,
+          success: allCreatedDocs.length > 0,
           count: allCreatedDocs.length,
           documents: allCreatedDocs,
           document: allCreatedDocs[0],
           content: firstContent,
+          failedFiles: allFailedFiles,
+          totalRequested: totalFiles,
         };
 
-        if (allCreatedDocs.length > 1) {
+        if (allFailedFiles.length > 0) {
+          if (allCreatedDocs.length > 0) {
+            notifications.show({
+              title: 'Upload Partially Complete',
+              message: `${allCreatedDocs.length} of ${totalFiles} files saved to vault (${allFailedFiles.length} failed).`,
+              color: 'yellow',
+            });
+          } else {
+            const firstErrMsg = allFailedFiles[0]?.error || 'All files failed to upload.';
+            setError(firstErrMsg);
+            notifications.show({
+              title: 'Upload Failed',
+              message: firstErrMsg,
+              color: 'red',
+            });
+          }
+        } else if (allCreatedDocs.length > 1) {
           notifications.show({
-            title: `${allCreatedDocs.length} Files Saved to Vault`,
+            title: `All ${allCreatedDocs.length} Files Saved to Vault`,
             message: `Each file encrypted with individual AES-256 keys & archived in Telegram + MongoDB.`,
             color: 'teal',
           });
@@ -166,40 +242,39 @@ export function useUpload(onSuccess) {
           });
         }
 
-        if (onSuccess) {
-          onSuccess(allCreatedDocs.length > 1 ? allCreatedDocs : allCreatedDocs[0], firstContent);
+        if (onSuccess && allCreatedDocs.length > 0) {
+          onSuccess(
+            allCreatedDocs.length > 1 ? allCreatedDocs : allCreatedDocs[0],
+            firstContent,
+            allFailedFiles
+          );
         }
 
         return finalResult;
       } catch (err) {
-        // Even if an error was thrown on later files, preserve any files that already succeeded
-        if (allCreatedDocs.length > 0) {
-          notifications.show({
-            title: 'Partial Upload Saved',
-            message: `${allCreatedDocs.length} of ${fileList.length} files were successfully saved to the vault.`,
-            color: 'yellow',
-          });
-          const partialResult = {
-            success: true,
-            count: allCreatedDocs.length,
-            documents: allCreatedDocs,
-            document: allCreatedDocs[0],
-            content: firstContent,
-          };
-          if (onSuccess) {
-            onSuccess(allCreatedDocs, firstContent);
-          }
-          return partialResult;
-        }
-
-        const msg = extractErrorMessage(err, 'Upload failed.');
+        const msg = extractErrorMessage(err, 'Upload process encountered an error.');
         setError(msg);
         notifications.show({
-          title: 'Upload Failed',
+          title: 'Upload Interrupted',
           message: msg,
           color: 'red',
         });
-        throw err;
+
+        const partialResult = {
+          success: allCreatedDocs.length > 0,
+          count: allCreatedDocs.length,
+          documents: allCreatedDocs,
+          document: allCreatedDocs[0],
+          content: firstContent,
+          failedFiles: allFailedFiles,
+          totalRequested: totalFiles,
+        };
+
+        if (onSuccess && allCreatedDocs.length > 0) {
+          onSuccess(allCreatedDocs, firstContent, allFailedFiles);
+        }
+
+        return partialResult;
       } finally {
         setIsProcessing(false);
         setUploadProgress(0);

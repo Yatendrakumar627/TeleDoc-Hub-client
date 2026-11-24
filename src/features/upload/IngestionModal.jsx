@@ -22,6 +22,9 @@ import {
   Lock,
   ArrowRight,
   Folder,
+  AlertTriangle,
+  RefreshCw,
+  XCircle,
 } from 'lucide-react';
 import ModalWrapper from '../../components/ui/ModalWrapper';
 import FeedbackBanner from '../../components/ui/FeedbackBanner';
@@ -54,6 +57,7 @@ export default function IngestionModal({
 
   // Post-upload state
   const [uploadedResult, setUploadedResult] = useState(null); // { document, content }
+  const [reviewTab, setReviewTab] = useState('succeeded'); // 'succeeded' | 'failed'
   const [collections, setCollections] = useState([]);
   const [selectedCollectionId, setSelectedCollectionId] = useState('');
   const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -66,6 +70,7 @@ export default function IngestionModal({
     if (opened) {
       setStep('upload');
       setUploadedResult(null);
+      setReviewTab('succeeded');
       setIsCreatingNew(false);
       setNewCollectionName('');
       setSelectedCollectionId(targetCollection ? targetCollection.id : '');
@@ -142,6 +147,51 @@ export default function IngestionModal({
   // Helper to extract array of uploaded documents
   const getUploadedDocs = () => {
     return uploadedResult?.documents || (uploadedResult?.document ? [uploadedResult.document] : []);
+  };
+
+  // Helper to extract array of failed files
+  const getFailedFiles = () => {
+    return uploadedResult?.failedFiles || [];
+  };
+
+  // Retry any failed files without losing already uploaded documents
+  const handleRetryFailed = async () => {
+    const failed = getFailedFiles();
+    if (!failed || failed.length === 0) return;
+
+    const filesToRetry = failed.map((f) => f.file).filter(Boolean);
+    if (filesToRetry.length === 0) return;
+
+    setStep('upload');
+    try {
+      const options = targetCollection
+        ? {
+            collectionId: targetCollection.id,
+            collectionName: targetCollection.name,
+            scope: targetCollection.scope,
+            groupId: targetCollection.groupId,
+            group: targetCollection.groupName || (targetCollection.groupId ? targetCollection.name : undefined),
+          }
+        : {};
+
+      const res = await onUploadFile(filesToRetry, options);
+      if (res) {
+        const newlyCreated = res.documents || (res.document ? [res.document] : []);
+        const existingCreated = getUploadedDocs();
+        const mergedDocs = [...existingCreated, ...newlyCreated];
+
+        setUploadedResult({
+          ...res,
+          documents: mergedDocs,
+          document: mergedDocs[0],
+          failedFiles: res.failedFiles || [],
+        });
+        setStep('collection');
+        setReviewTab(res.failedFiles && res.failedFiles.length > 0 ? 'failed' : 'succeeded');
+      }
+    } catch (err) {
+      console.error('Error retrying failed files:', err);
+    }
   };
 
   // Create new collection and assign all uploaded file instances
@@ -344,53 +394,121 @@ export default function IngestionModal({
       ) : (
         // ================= STEP 2: CREATE / ASSIGN COLLECTION AFTER UPLOAD =================
         <Stack gap="md">
-          {/* Success Summary Pill */}
-          <Paper p="sm" radius="md" style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
-            <Group justify="space-between" align="center" mb={getUploadedDocs().length > 1 ? 'xs' : 0}>
+          {/* Summary Card with Succeeded & Failed Tracking */}
+          <Paper
+            p="sm"
+            radius="md"
+            style={{
+              backgroundColor: getFailedFiles().length > 0 ? 'var(--surface-card-warm)' : '#f0fdf4',
+              border: getFailedFiles().length > 0 ? '1px solid var(--brand-gold)' : '1px solid #bbf7d0',
+            }}
+          >
+            <Group justify="space-between" align="center" mb={getFailedFiles().length > 0 || getUploadedDocs().length > 1 ? 'xs' : 0}>
               <Group gap="xs">
-                <CheckCircle2 size={20} color="#16a34a" />
+                {getFailedFiles().length > 0 ? (
+                  <AlertTriangle size={20} color="var(--brand-gold)" />
+                ) : (
+                  <CheckCircle2 size={20} color="#16a34a" />
+                )}
                 <Box>
-                  <Text size="sm" fw={600} c="green.9">
-                    {getUploadedDocs().length > 1
+                  <Text size="sm" fw={600} c={getFailedFiles().length > 0 ? 'yellow.9' : 'green.9'}>
+                    {getUploadedDocs().length > 0 && getFailedFiles().length > 0
+                      ? `${getUploadedDocs().length} Succeeded • ${getFailedFiles().length} Failed`
+                      : getUploadedDocs().length > 1
                       ? `${getUploadedDocs().length} Individual Files Uploaded & Encrypted!`
                       : 'Uploaded & Vault Encrypted!'}
                   </Text>
                   <Text size="xs" c="dimmed">
-                    {getUploadedDocs().length > 1
-                      ? 'Each file stored as an independent instance with its own AES-256 key'
-                      : `${uploadedResult?.document?.filename} (${((uploadedResult?.document?.fileSize || 0) / 1024).toFixed(1)} KB)`}
+                    {getUploadedDocs().length > 0
+                      ? 'Each saved file stored as an independent instance with its own AES-256 key'
+                      : 'No files were uploaded to the vault.'}
                   </Text>
                 </Box>
               </Group>
-              <Badge color="teal" variant="light" leftSection={<Lock size={10} />}>
-                Zero-Knowledge AES-256
-              </Badge>
+              <Group gap="xs">
+                <Badge color="teal" variant="light" leftSection={<Lock size={10} />}>
+                  Zero-Knowledge AES-256
+                </Badge>
+                {getFailedFiles().length > 0 && (
+                  <Button
+                    size="xs"
+                    color="orange"
+                    variant="filled"
+                    leftSection={<RefreshCw size={12} />}
+                    onClick={handleRetryFailed}
+                  >
+                    Retry Failed ({getFailedFiles().length})
+                  </Button>
+                )}
+              </Group>
             </Group>
 
-            {/* If multiple files were uploaded, show clean scrollable list of instances */}
-            {getUploadedDocs().length > 1 && (
+            {/* Toggle between Succeeded and Failed if there are failed files */}
+            {getFailedFiles().length > 0 && (
+              <SegmentedControl
+                size="xs"
+                value={reviewTab}
+                onChange={setReviewTab}
+                mb="xs"
+                data={[
+                  { label: `✅ Succeeded (${getUploadedDocs().length})`, value: 'succeeded' },
+                  { label: `❌ Failed (${getFailedFiles().length})`, value: 'failed' },
+                ]}
+              />
+            )}
+
+            {/* Show list according to selected reviewTab */}
+            {reviewTab === 'failed' && getFailedFiles().length > 0 ? (
               <Box
                 mt="xs"
                 pt="xs"
-                mah={140}
-                style={{ overflowY: 'auto', borderTop: '1px dashed #bbf7d0' }}
+                mah={150}
+                style={{ overflowY: 'auto', borderTop: '1px dashed var(--brand-gold)' }}
               >
-                {getUploadedDocs().map((doc, idx) => (
-                  <Group key={doc.id || idx} justify="space-between" py={3}>
+                {getFailedFiles().map((fail, idx) => (
+                  <Group key={idx} justify="space-between" py={4}>
                     <Group gap="xs" style={{ minWidth: 0, flex: 1 }}>
-                      <Text size="xs" fw={500} truncate>
-                        📄 {doc.filename}
+                      <XCircle size={14} color="#dc2626" style={{ flexShrink: 0 }} />
+                      <Text size="xs" fw={500} c="red.9" truncate>
+                        {fail.filename}
                       </Text>
-                      <Text size="xs" c="dimmed">
-                        ({((doc.fileSize || 0) / 1024).toFixed(1)} KB)
-                      </Text>
+                      {fail.size && (
+                        <Text size="xs" c="dimmed">
+                          ({((fail.size || 0) / 1024).toFixed(1)} KB)
+                        </Text>
+                      )}
                     </Group>
-                    <Badge size="xs" variant="outline" color={doc.scope === 'personal' ? 'violet' : 'blue'}>
-                      {doc.taxonomy?.group || doc.format || 'file'}
+                    <Badge size="xs" color="red" variant="light">
+                      {fail.error || 'Failed'}
                     </Badge>
                   </Group>
                 ))}
               </Box>
+            ) : (
+              getUploadedDocs().length > 1 && (
+                <Box
+                  mt="xs"
+                  pt="xs"
+                  mah={140}
+                  style={{ overflowY: 'auto', borderTop: '1px dashed #bbf7d0' }}
+                >
+                  {getUploadedDocs().map((doc, idx) => (
+                    <Group key={doc.id || idx} justify="space-between" py={3}>
+                      <Group gap="xs" style={{ minWidth: 0, flex: 1 }}>
+                        <Text size="xs" fw={500} truncate>
+                          📄 {doc.filename}
+                        </Text>
+                        <Text size="xs" c="dimmed">
+                          ({((doc.fileSize || 0) / 1024).toFixed(1)} KB)
+                        </Text>
+                      </Group>
+                      <Badge size="xs" variant="outline" color={doc.scope === 'personal' ? 'violet' : 'blue'}>
+                        {doc.taxonomy?.group || doc.format || 'file'}
+                      </Badge>
+                    </Group>
+                  ))}
+                </Box>
+              )
             )}
           </Paper>
 
