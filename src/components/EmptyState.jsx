@@ -45,6 +45,7 @@ import {
   List,
 } from 'lucide-react';
 import GalleryMediaCard from '../features/collection/GalleryMediaCard';
+import DirectUploadBar from '../features/upload/DirectUploadBar';
 import { formatBytes, formatNumber, formatDate, extractDateFromName } from '../utils/formatters';
 import { API_BASE_URL } from '../config';
 import { getDownloadUrl } from '../services/apiClient';
@@ -1231,49 +1232,9 @@ export default function EmptyState({
         </Stack>
 
         {/* ================= 5. INTEGRATED DROP-TO-UPLOAD ZONE ================= */}
-        <Paper
-          py={8}
-          px={12}
-          radius="md"
-          withBorder
-          onClick={() => onOpenUpload && onOpenUpload(null)}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDragging(true);
-          }}
-          onDragLeave={(e) => {
-            e.preventDefault();
-            setIsDragging(false);
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            setIsDragging(false);
-            if (e.dataTransfer.files?.length && onOpenUpload) {
-              onOpenUpload(null);
-            }
-          }}
-          style={{
-            border: isDragging ? '1.5px dashed var(--brand-primary)' : '1.5px dashed var(--brand-gold)',
-            backgroundColor: isDragging ? 'var(--brand-primary-light)' : 'var(--surface-card-warm)',
-            cursor: 'pointer',
-            textAlign: 'center',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          <Group justify="center" gap="sm" align="center">
-            <ThemeIcon size={30} radius="xl" variant="light" color="emerald" style={{ background: 'rgba(24, 88, 68, 0.1)' }}>
-              <UploadCloud size={16} color="var(--brand-primary)" />
-            </ThemeIcon>
-            <Box ta="left">
-              <Text size="xs" fw={700} style={{ color: isDragging ? 'var(--brand-primary)' : 'var(--brand-forest)' }}>
-                {isDragging ? 'Release files to upload to vault' : 'Drag & drop files anywhere, or click here to upload'}
-              </Text>
-              <Text size="10.5px" style={{ color: 'var(--text-muted)' }}>
-                Supports PDF, Word, Excel, PPT, Photos, Videos, and Code • Up to 50 MB each
-              </Text>
-            </Box>
-          </Group>
-        </Paper>
+        <DirectUploadBar
+          onFilesSelected={(files) => onOpenUpload && onOpenUpload(null, files)}
+        />
 
       </Stack>
     </Box>

@@ -48,6 +48,7 @@ import { notifications } from '@mantine/notifications';
 import FileCard from '../library/FileCard';
 import { getCollections, reorderCollections } from '../../services/apiClient';
 import { extractDateFromName, formatBytes } from '../../utils/formatters';
+import DirectUploadBar from '../upload/DirectUploadBar';
 
 export default function GroupHubView({
   group,
@@ -68,6 +69,7 @@ export default function GroupHubView({
   // Batch Multi-Select state
   const [selectedFileIds, setSelectedFileIds] = useState([]);
   const [batchMoveModalOpen, setBatchMoveModalOpen] = useState(false);
+  const [isDraggingUpload, setIsDraggingUpload] = useState(false);
   const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
   const [targetMoveCollectionId, setTargetMoveCollectionId] = useState('');
   const [allAvailableCollections, setAllAvailableCollections] = useState([]);
@@ -805,6 +807,12 @@ export default function GroupHubView({
             </Paper>
           )}
         </Box>
+
+        {/* Permanent Bottom Drop-to-Upload Zone */}
+        <DirectUploadBar
+          mt="xs"
+          onFilesSelected={(files) => onOpenUpload && onOpenUpload(null, files)}
+        />
       </Stack>
 
       {/* Edit Group Modal */}

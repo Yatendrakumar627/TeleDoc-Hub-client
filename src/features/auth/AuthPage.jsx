@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Paper,
   TextInput,
@@ -29,6 +29,7 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { getAuthStatus } from '../../services/apiClient';
 import { extractErrorMessage } from '../../utils/formatters';
 
 export default function AuthPage() {
@@ -42,6 +43,33 @@ export default function AuthPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [serverState, setServerState] = useState('checking'); // 'checking' | 'ready' | 'waking'
+
+  // Pre-warm Render backend as soon as user lands on the Sign In page
+  useEffect(() => {
+    let active = true;
+    const wakeServer = async () => {
+      try {
+        await getAuthStatus();
+        if (active) setServerState('ready');
+      } catch {
+        if (active) setServerState('waking');
+        // Retry wake-up ping once after 4s so Render finishes cold-starting
+        setTimeout(async () => {
+          try {
+            await getAuthStatus();
+            if (active) setServerState('ready');
+          } catch {
+            // Will be handled by login retry if still booting
+          }
+        }, 4000);
+      }
+    };
+    wakeServer();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -137,6 +165,18 @@ export default function AuthPage() {
               ? 'Initialize your master keys and personal isolated storage'
               : 'Enter your credentials to unlock your encrypted documents'}
           </Text>
+
+          {serverState === 'waking' && !errorMessage && (
+            <Alert
+              icon={<Cloud size={16} />}
+              color="teal"
+              variant="light"
+              mb="md"
+              radius="md"
+            >
+              <Text size="xs">Waking up cloud server... You can enter your details while it connects.</Text>
+            </Alert>
+          )}
 
           {errorMessage && (
             <Alert

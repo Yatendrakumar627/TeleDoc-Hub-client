@@ -21,6 +21,8 @@ import {
   Menu,
   Checkbox,
   Pagination,
+  NumberInput,
+  ThemeIcon,
 } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import {
@@ -65,6 +67,7 @@ import {
   getDownloadUrl,
 } from '../../services/apiClient';
 import GalleryMediaCard, { isImageFile, isVideoFile, isMediaFile } from './GalleryMediaCard';
+import DirectUploadBar from '../upload/DirectUploadBar';
 
 /**
  * Authentic Document Brand Icon (Word, PDF, Excel, PPT, Media)
@@ -243,10 +246,14 @@ export default function CollectionHubView({
   // Multi-Selection State for Batch Operations
   const [selectedFileIds, setSelectedFileIds] = useState([]);
   const [batchMoveModalOpen, setBatchMoveModalOpen] = useState(false);
+  const [moveMode, setMoveMode] = useState('collection'); // 'collection' | 'within_folder'
+  const [withinFolderPlacement, setWithinFolderPlacement] = useState('top'); // 'top' | 'bottom' | 'position'
+  const [withinFolderPosition, setWithinFolderPosition] = useState(1);
   const [targetMoveCollectionId, setTargetMoveCollectionId] = useState('');
   const [availableCollections, setAvailableCollections] = useState([]);
   const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
   const [isSubmittingBatch, setIsSubmittingBatch] = useState(false);
+  const [isDraggingUpload, setIsDraggingUpload] = useState(false);
 
   // View Mode: 'gallery' (Visual Photo & Video Grid) vs 'cards' (Detailed Document Cards)
   const [viewMode, setViewMode] = useState(() => {
@@ -526,6 +533,9 @@ export default function CollectionHubView({
     } catch (err) {
       console.warn('Failed to fetch collections for batch move:', err);
     }
+    setMoveMode('collection');
+    setWithinFolderPlacement('top');
+    setWithinFolderPosition(1);
     setTargetMoveCollectionId('');
     setBatchMoveModalOpen(true);
   };
@@ -536,7 +546,64 @@ export default function CollectionHubView({
   };
 
   const handleConfirmBatchMove = async () => {
-    if (selectedFileIds.length === 0 || !onBatchMoveFiles) return;
+    if (selectedFileIds.length === 0) return;
+
+    if (moveMode === 'within_folder') {
+      try {
+        setIsSubmittingBatch(true);
+        const selectedSet = new Set(selectedFileIds);
+        const visibleIds = new Set(displayedFilesWithMeta.map((f) => f.id));
+        const selectedItems = displayedFilesWithMeta.filter((f) => selectedSet.has(f.id));
+        const unselectedVisible = displayedFilesWithMeta.filter((f) => !selectedSet.has(f.id));
+        const hiddenItems = orderedFiles.filter((f) => !visibleIds.has(f.id));
+
+        let reorderedVisible = [];
+        if (withinFolderPlacement === 'top') {
+          reorderedVisible = [...selectedItems, ...unselectedVisible];
+        } else if (withinFolderPlacement === 'bottom') {
+          reorderedVisible = [...unselectedVisible, ...selectedItems];
+        } else {
+          const targetIdx = Math.max(0, Math.min((Number(withinFolderPosition) || 1) - 1, unselectedVisible.length));
+          reorderedVisible = [
+            ...unselectedVisible.slice(0, targetIdx),
+            ...selectedItems,
+            ...unselectedVisible.slice(targetIdx),
+          ];
+        }
+
+        const newOrderedList = [...reorderedVisible, ...hiddenItems];
+        setFileSortBy('custom');
+        setOrderedFiles(newOrderedList);
+        await reorderDocuments(newOrderedList.map((f) => f.id));
+
+        const placementLabel =
+          withinFolderPlacement === 'top'
+            ? 'top of folder'
+            : withinFolderPlacement === 'bottom'
+              ? 'bottom of folder'
+              : `position #${withinFolderPosition}`;
+        notifications.show({
+          title: 'Moved Within Folder',
+          message: `Moved ${selectedItems.length} file(s) to ${placementLabel} in "${collection?.name || 'Folder'}".`,
+          color: 'emerald',
+          autoClose: 2200,
+        });
+        setSelectedFileIds([]);
+        setBatchMoveModalOpen(false);
+      } catch (err) {
+        console.error('Within-folder move error:', err);
+        notifications.show({
+          title: 'Move Failed',
+          message: 'Could not reorder files within the folder.',
+          color: 'red',
+        });
+      } finally {
+        setIsSubmittingBatch(false);
+      }
+      return;
+    }
+
+    if (!onBatchMoveFiles) return;
     try {
       setIsSubmittingBatch(true);
       await onBatchMoveFiles(selectedFileIds, targetMoveCollectionId || null);
@@ -1720,6 +1787,13 @@ export default function CollectionHubView({
         </>
       )}
 
+      {/* Permanent Bottom Drop-to-Upload Zone for Every Folder */}
+      <DirectUploadBar
+        mt="md"
+        targetName={collection?.name || 'Folder'}
+        onFilesSelected={(files) => onOpenUpload && onOpenUpload(collection, files)}
+      />
+
       {/* Modal: Edit Collection (Update) */}
       <Modal
         opened={editModalOpen}
@@ -1988,23 +2062,67 @@ export default function CollectionHubView({
       >
         <Stack gap="md">
           <Text size="sm" c="dimmed">
-            Choose target destination for {selectedFileIds.length} selected file{selectedFileIds.length === 1 ? '' : 's'}:
+            Choose where to move {selectedFileIds.length} selected file{selectedFileIds.length === 1 ? '' : 's'}:
           </Text>
 
-          <Select
-            label="Target Collection"
-            placeholder="Select destination folder..."
+          <SegmentedControl
+            fullWidth
+            size="xs"
+            radius="md"
+            value={moveMode}
+            onChange={setMoveMode}
             data={[
-              { label: '📥 Inbox (Unassigned / Loose Files)', value: '' },
-              ...availableCollections.map((c) => ({
-                label: `📁 ${c.name} (${c.scope === 'personal' ? 'Personal' : 'Work'}${c.groupName ? ` • ${c.groupName}` : ''})`,
-                value: c.id,
-              })),
+              { label: '📁 Other Collection / Folder', value: 'collection' },
+              { label: '↕️ Within This Folder', value: 'within_folder' },
             ]}
-            value={targetMoveCollectionId}
-            onChange={(val) => setTargetMoveCollectionId(val ?? '')}
-            searchable
           />
+
+          {moveMode === 'collection' ? (
+            <Select
+              label="Target Collection / Folder"
+              placeholder="Select destination folder..."
+              data={[
+                { label: '📥 Inbox (Unassigned / Loose Files)', value: '' },
+                ...availableCollections.map((c) => ({
+                  label: `📁 ${c.name} (${c.scope === 'personal' ? 'Personal' : 'Work'}${c.groupName ? ` • ${c.groupName}` : ''})`,
+                  value: c.id,
+                })),
+              ]}
+              value={targetMoveCollectionId}
+              onChange={(val) => setTargetMoveCollectionId(val ?? '')}
+              searchable
+            />
+          ) : (
+            <Stack gap="sm">
+              <Radio.Group
+                label={`Position inside "${collection?.name || 'Current Folder'}"`}
+                value={withinFolderPlacement}
+                onChange={setWithinFolderPlacement}
+              >
+                <Stack gap="xs" mt={6}>
+                  <Radio value="top" label="⬆️ Move to Top (Beginning of folder)" color="emerald" size="xs" />
+                  <Radio value="bottom" label="⬇️ Move to Bottom (End of folder)" color="emerald" size="xs" />
+                  <Radio value="position" label="📍 Move to Specific Position #" color="emerald" size="xs" />
+                </Stack>
+              </Radio.Group>
+
+              {withinFolderPlacement === 'position' && (
+                <NumberInput
+                  label={`Target Position (1 – ${Math.max(1, displayedFilesWithMeta.length)})`}
+                  min={1}
+                  max={Math.max(1, displayedFilesWithMeta.length)}
+                  value={withinFolderPosition}
+                  onChange={(val) => setWithinFolderPosition(Number(val) || 1)}
+                  size="xs"
+                  radius="md"
+                />
+              )}
+
+              <Text size="11px" c="dimmed">
+                Switches folder sort to Manual Order and saves the new sequence.
+              </Text>
+            </Stack>
+          )}
 
           <Group justify="flex-end" mt="md">
             <Button variant="default" size="xs" onClick={() => setBatchMoveModalOpen(false)}>
@@ -2016,7 +2134,13 @@ export default function CollectionHubView({
               loading={isSubmittingBatch}
               onClick={handleConfirmBatchMove}
             >
-              Move {selectedFileIds.length} File{selectedFileIds.length === 1 ? '' : 's'}
+              {moveMode === 'within_folder'
+                ? withinFolderPlacement === 'top'
+                  ? `Move ${selectedFileIds.length} to Top`
+                  : withinFolderPlacement === 'bottom'
+                    ? `Move ${selectedFileIds.length} to Bottom`
+                    : `Move ${selectedFileIds.length} to #${withinFolderPosition}`
+                : `Move ${selectedFileIds.length} File${selectedFileIds.length === 1 ? '' : 's'}`}
             </Button>
           </Group>
         </Stack>

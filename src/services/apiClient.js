@@ -37,8 +37,34 @@ apiClient.interceptors.response.use(
 
 // ===================== AUTHENTICATION API =====================
 
+const isColdStartError = (err) => {
+  if (!err) return false;
+  if (err.code === 'ERR_NETWORK' || err.code === 'ECONNABORTED') return true;
+  if (typeof err.message === 'string' && err.message.toLowerCase() === 'network error') return true;
+  const status = err.response?.status;
+  return status === 502 || status === 503 || status === 504;
+};
+
+const withColdStartRetry = async (fn, maxRetries = 3) => {
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (!isColdStartError(err) || attempt === maxRetries) {
+        throw err;
+      }
+      // Wait progressively (3s, 5s, 7s) for Render free instance to finish booting
+      const delayMs = 3000 + attempt * 2000;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  throw lastError;
+};
+
 export const loginUser = async (email, password) => {
-  const res = await apiClient.post('/auth/login', { email, password });
+  const res = await withColdStartRetry(() => apiClient.post('/auth/login', { email, password }));
   if (res.data.token) {
     localStorage.setItem(TOKEN_KEY, res.data.token);
   }
@@ -46,7 +72,7 @@ export const loginUser = async (email, password) => {
 };
 
 export const registerUser = async (data) => {
-  const res = await apiClient.post('/auth/register', data);
+  const res = await withColdStartRetry(() => apiClient.post('/auth/register', data));
   if (res.data.token) {
     localStorage.setItem(TOKEN_KEY, res.data.token);
   }
